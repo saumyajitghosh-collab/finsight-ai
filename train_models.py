@@ -22,8 +22,8 @@ from imblearn.over_sampling import SMOTE
 
 warnings.filterwarnings("ignore")
 
-DATA_DIR = Path("/workspace/outputs/banking_ai_app/data")
-MODEL_DIR = Path("/workspace/outputs/banking_ai_app/models")
+DATA_DIR = Path(__file__).parent / "data"
+MODEL_DIR = Path(__file__).parent / "models"
 MODEL_DIR.mkdir(parents=True, exist_ok=True)
 
 metrics = {}

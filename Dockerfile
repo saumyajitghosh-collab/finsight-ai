@@ -15,8 +15,12 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy app files
 COPY . .
 
-# Expose port
-EXPOSE 5000
+# Generate data and train models during build (no .pkl files needed in repo)
+RUN python build_data_and_models.py && python train_models.py
 
-# Run with gunicorn
-CMD ["gunicorn", "--bind", "0.0.0.0:5000", "--workers", "2", "--timeout", "120", "app:app"]
+# Render sets PORT env var; default to 10000
+ENV PORT=10000
+EXPOSE 10000
+
+# Single worker to fit within 512MB free tier RAM
+CMD ["sh", "-c", "gunicorn --bind 0.0.0.0:${PORT:-10000} --workers 1 --threads 2 --timeout 120 app:app"]

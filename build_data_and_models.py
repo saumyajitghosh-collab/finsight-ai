@@ -16,8 +16,9 @@ warnings.filterwarnings("ignore")
 RNG = np.random.default_rng(42)
 random.seed(42)
 
-BASE = Path("/workspace/outputs/banking_ai_app/data")
-MODEL_DIR = Path("/workspace/outputs/banking_ai_app/models")
+BASE_DIR = Path(__file__).parent
+BASE = BASE_DIR / "data"
+MODEL_DIR = BASE_DIR / "models"
 BASE.mkdir(parents=True, exist_ok=True)
 MODEL_DIR.mkdir(parents=True, exist_ok=True)
 
