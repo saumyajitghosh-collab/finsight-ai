@@ -1,0 +1,302 @@
+{
+  "credit_risk": {
+    "auc": 0.6549,
+    "accuracy": 0.849,
+    "precision": 0.3137,
+    "recall": 0.1212,
+    "f1": 0.1749,
+    "confusion_matrix": [
+      [
+        1666,
+        70
+      ],
+      [
+        232,
+        32
+      ]
+    ],
+    "feature_count": 15,
+    "train_samples": 13886,
+    "test_samples": 2000,
+    "default_rate": 0.1321,
+    "feature_importance": [
+      {
+        "feature": "tenure_months",
+        "importance": 0.2400183379650116
+      },
+      {
+        "feature": "segment",
+        "importance": 0.09269531816244125
+      },
+      {
+        "feature": "credit_bureau_score",
+        "importance": 0.08814878761768341
+      },
+      {
+        "feature": "income_log",
+        "importance": 0.0878448560833931
+      },
+      {
+        "feature": "loan_type",
+        "importance": 0.08341503888368607
+      },
+      {
+        "feature": "employment_type",
+        "importance": 0.0745064988732338
+      },
+      {
+        "feature": "num_products",
+        "importance": 0.0626494288444519
+      },
+      {
+        "feature": "annual_income",
+        "importance": 0.03841092810034752
+      },
+      {
+        "feature": "interest_rate",
+        "importance": 0.0375845767557621
+      },
+      {
+        "feature": "age",
+        "importance": 0.03510567173361778
+      },
+      {
+        "feature": "loan_amount_log",
+        "importance": 0.03422597423195839
+      },
+      {
+        "feature": "loan_to_income",
+        "importance": 0.034165214747190475
+      },
+      {
+        "feature": "loan_amount",
+        "importance": 0.030675765126943588
+      },
+      {
+        "feature": "months_on_book",
+        "importance": 0.030548885464668274
+      },
+      {
+        "feature": "emi_to_income",
+        "importance": 0.03000474162399769
+      }
+    ]
+  },
+  "fraud_detection": {
+    "auc": 0.9036,
+    "accuracy": 0.8451,
+    "precision": 0.2172,
+    "recall": 0.757,
+    "f1": 0.3376,
+    "confusion_matrix": [
+      [
+        19336,
+        3413
+      ],
+      [
+        304,
+        947
+      ]
+    ],
+    "feature_count": 11,
+    "train_samples": 181990,
+    "test_samples": 24000,
+    "fraud_rate": 0.05213333333333333,
+    "feature_importance": [
+      {
+        "feature": "txn_type",
+        "importance": 0.3972371518611908
+      },
+      {
+        "feature": "merchant",
+        "importance": 0.2274322658777237
+      },
+      {
+        "feature": "is_weekend",
+        "importance": 0.11614221334457397
+      },
+      {
+        "feature": "amount",
+        "importance": 0.05716193467378616
+      },
+      {
+        "feature": "is_international",
+        "importance": 0.0455310195684433
+      },
+      {
+        "feature": "is_night_txn",
+        "importance": 0.04390723630785942
+      },
+      {
+        "feature": "channel",
+        "importance": 0.03386811539530754
+      },
+      {
+        "feature": "day_of_week",
+        "importance": 0.031593140214681625
+      },
+      {
+        "feature": "hour_of_day",
+        "importance": 0.02828095480799675
+      },
+      {
+        "feature": "amount_log",
+        "importance": 0.012899795547127724
+      },
+      {
+        "feature": "is_high_amount",
+        "importance": 0.0059461770579218864
+      }
+    ]
+  },
+  "kyc_aml": {
+    "auc": 1.0,
+    "accuracy": 0.9992,
+    "precision": 0.9886,
+    "recall": 1.0,
+    "f1": 0.9943,
+    "confusion_matrix": [
+      [
+        1112,
+        1
+      ],
+      [
+        0,
+        87
+      ]
+    ],
+    "feature_count": 13,
+    "train_samples": 4800,
+    "test_samples": 1200,
+    "alert_rate": 0.07216666666666667,
+    "feature_importance": [
+      {
+        "feature": "has_pep_link",
+        "importance": 0.6291808847522783
+      },
+      {
+        "feature": "has_sanction_link",
+        "importance": 0.2582424391252845
+      },
+      {
+        "feature": "adverse_media_hits",
+        "importance": 0.02569977651903466
+      },
+      {
+        "feature": "txn_volume_log",
+        "importance": 0.016207939789316988
+      },
+      {
+        "feature": "txn_volume_monthly",
+        "importance": 0.015388494556382092
+      },
+      {
+        "feature": "years_in_business",
+        "importance": 0.012004243359555421
+      },
+      {
+        "feature": "country",
+        "importance": 0.011830787343239751
+      },
+      {
+        "feature": "num_bank_accounts",
+        "importance": 0.007570301650702888
+      },
+      {
+        "feature": "high_risk_country",
+        "importance": 0.005894068517003614
+      },
+      {
+        "feature": "ownership_transparency",
+        "importance": 0.005142792252404927
+      },
+      {
+        "feature": "doc_type",
+        "importance": 0.004982593576243016
+      },
+      {
+        "feature": "entity_type",
+        "importance": 0.004657669516408684
+      },
+      {
+        "feature": "doc_verified",
+        "importance": 0.0031980090421452065
+      }
+    ]
+  },
+  "churn": {
+    "auc": 0.614,
+    "accuracy": 0.8919,
+    "precision": 0.0764,
+    "recall": 0.2157,
+    "f1": 0.1128,
+    "confusion_matrix": [
+      [
+        1416,
+        133
+      ],
+      [
+        40,
+        11
+      ]
+    ],
+    "feature_count": 13,
+    "train_samples": 12388,
+    "test_samples": 1600,
+    "churn_rate": 0.032125,
+    "feature_importance": [
+      {
+        "feature": "gender",
+        "importance": 0.18384575843811035
+      },
+      {
+        "feature": "digital_engagement_score",
+        "importance": 0.11235368251800537
+      },
+      {
+        "feature": "num_products",
+        "importance": 0.10677008330821991
+      },
+      {
+        "feature": "complaints_last_year",
+        "importance": 0.08741290122270584
+      },
+      {
+        "feature": "segment",
+        "importance": 0.08599556982517242
+      },
+      {
+        "feature": "employment_type",
+        "importance": 0.07879526168107986
+      },
+      {
+        "feature": "num_branch_visits",
+        "importance": 0.0710863545536995
+      },
+      {
+        "feature": "months_on_book",
+        "importance": 0.053273461759090424
+      },
+      {
+        "feature": "avg_monthly_balance",
+        "importance": 0.04704625532031059
+      },
+      {
+        "feature": "credit_card_usage",
+        "importance": 0.04446476325392723
+      },
+      {
+        "feature": "income_log",
+        "importance": 0.04414225369691849
+      },
+      {
+        "feature": "age",
+        "importance": 0.04378776624798775
+      },
+      {
+        "feature": "annual_income",
+        "importance": 0.04102591052651405
+      }
+    ]
+  }
+}

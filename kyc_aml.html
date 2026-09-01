@@ -1,0 +1,38 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="page-header"><h2>KYC / AML Risk Assessment</h2><p>AI-powered compliance risk scoring — Commercial & Institutional Banking</p></div>
+<div class="card"><div class="card-title">Entity Information</div>
+<div class="form-grid">
+    <div class="form-group"><label>Entity Type</label><select id="entity_type"><option value="Individual" selected>Individual</option><option value="Corporate">Corporate</option><option value="Partnership">Partnership</option><option value="Trust">Trust</option></select></div>
+    <div class="form-group"><label>Country</label><select id="country"><option value="India" selected>India</option><option value="USA">USA</option><option value="UK">UK</option><option value="Singapore">Singapore</option><option value="UAE">UAE</option><option value="Switzerland">Switzerland</option><option value="Hong Kong">Hong Kong</option><option value="Germany">Germany</option><option value="Cyprus">Cyprus (High Risk)</option><option value="BVI">BVI (High Risk)</option><option value="Panama">Panama (High Risk)</option><option value="Seychelles">Seychelles (High Risk)</option><option value="Mauritius">Mauritius (High Risk)</option><option value="Cayman Islands">Cayman Islands (High Risk)</option><option value="China">China</option></select></div>
+    <div class="form-group"><label>Document Type</label><select id="doc_type"><option value="PAN" selected>PAN</option><option value="Passport">Passport</option><option value="Aadhaar">Aadhaar</option><option value="Driving License">Driving License</option><option value="Voter ID">Voter ID</option></select></div>
+    <div class="form-group"><label>Document Verified</label><select id="doc_verified"><option value="1" selected>Yes</option><option value="0">No</option></select></div>
+    <div class="form-group"><label>Number of Bank Accounts</label><input type="number" id="num_bank_accounts" value="2" min="1"></div>
+    <div class="form-group"><label>Monthly Transaction Volume (₹)</label><input type="number" id="txn_volume_monthly" value="500000" step="50000"></div>
+    <div class="form-group"><label>PEP Link</label><select id="has_pep_link"><option value="0" selected>No</option><option value="1">Yes</option></select></div>
+    <div class="form-group"><label>Sanction Link</label><select id="has_sanction_link"><option value="0" selected>No</option><option value="1">Yes</option></select></div>
+    <div class="form-group"><label>Adverse Media Hits</label><input type="number" id="adverse_media_hits" value="0" min="0" max="10"></div>
+    <div class="form-group"><label>Years in Business</label><input type="number" id="years_in_business" value="10" min="1"></div>
+    <div class="form-group"><label>Ownership Transparency</label><select id="ownership_transparency"><option value="High" selected>High</option><option value="Medium">Medium</option><option value="Low">Low</option></select></div>
+</div>
+<div style="display:flex;gap:12px;margin-top:8px;"><button class="btn btn-primary" onclick="predictKYC()">Assess AML Risk</button><button class="btn btn-secondary" onclick="loadSample()">Load Random Sample</button></div>
+</div>
+<div class="result-box" id="result"><h3 id="result-title"></h3><div id="result-body"></div></div>
+<div class="card" style="margin-top:20px;"><div class="card-title">How It Works</div><p style="font-size:0.88rem;color:var(--text-muted);line-height:1.6;">The KYC/AML model combines a Random Forest classifier with a rule-based risk scoring engine. It evaluates 13 features including entity type, jurisdiction risk, sanction/PEP links, adverse media, document verification status, and ownership transparency. The system assigns a risk score (0-100) and category with a recommended compliance action.</p></div>
+{% endblock %}
+{% block scripts %}
+<script>
+function predictKYC(){
+    const d={entity_type:entity_type.value,country:country.value,doc_type:doc_type.value,doc_verified:doc_verified.value,num_bank_accounts:num_bank_accounts.value,txn_volume_monthly:txn_volume_monthly.value,has_pep_link:has_pep_link.value,has_sanction_link:has_sanction_link.value,adverse_media_hits:adverse_media_hits.value,years_in_business:years_in_business.value,ownership_transparency:ownership_transparency.value};
+    fetch('/api/kyc/predict',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(d)}).then(r=>r.json()).then(res=>{
+        const box=document.getElementById('result');let cls='approve';
+        if(res.risk_category==='Critical'||res.risk_category==='High')cls='danger';else if(res.risk_category==='Medium')cls='warn';
+        box.className='result-box show '+cls;
+        const color=res.risk_score>40?'#e53935':res.risk_score>20?'#fb8c00':'#43a047';
+        result_title.innerHTML=`Risk Score: ${res.risk_score}/100 — Category: ${res.risk_category}`;
+        result_body.innerHTML=`<p style="font-size:1rem;font-weight:600;margin-bottom:8px;">${res.action}</p><div class="prob-bar"><div class="prob-fill" style="width:${res.risk_score}%;background:${color};"></div></div><div class="divider"></div><div class="info-grid"><div class="info-item"><span class="key">Alert Probability</span><span class="val">${res.alert_probability}%</span></div><div class="info-item"><span class="key">Alert Status</span><span class="val">${res.alert}</span></div></div><div class="divider"></div><p style="font-size:0.82rem;color:var(--text-muted);margin-bottom:6px;">Risk Factors:</p>${res.risk_factors.map(r=>`<div class="info-item"><span class="key">•</span><span class="val">${r}</span></div>`).join('')}`;
+    });
+}
+function loadSample(){fetch('/api/kyc/sample').then(r=>r.json()).then(s=>{entity_type.value=s.entity_type;country.value=s.country;doc_type.value=s.doc_type;doc_verified.value=s.doc_verified;num_bank_accounts.value=s.num_bank_accounts;txn_volume_monthly.value=s.txn_volume_monthly;has_pep_link.value=s.has_pep_link;has_sanction_link.value=s.has_sanction_link;adverse_media_hits.value=s.adverse_media_hits;years_in_business.value=s.years_in_business;ownership_transparency.value=s.ownership_transparency;});}
+</script>
+{% endblock %}

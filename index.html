@@ -1,0 +1,56 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="page-header">
+    <h2>Banking Intelligence Dashboard</h2>
+    <p>Cross-functional AI platform spanning Retail, Commercial, and Investment Banking</p>
+</div>
+<div class="kpi-grid">
+    <div class="kpi-card"><div class="label">Total Customers</div><div class="value" id="kpi-customers">—</div><div class="sub" id="kpi-segments">—</div></div>
+    <div class="kpi-card danger"><div class="label">Fraud Alerts</div><div class="value" id="kpi-fraud">—</div><div class="sub" id="kpi-fraud-rate">—</div></div>
+    <div class="kpi-card warning"><div class="label">Loan Defaults</div><div class="value" id="kpi-defaults">—</div><div class="sub" id="kpi-default-rate">—</div></div>
+    <div class="kpi-card"><div class="label">KYC Alerts</div><div class="value" id="kpi-kyc">—</div><div class="sub">AML risk flags</div></div>
+    <div class="kpi-card warning"><div class="label">Churn Risk</div><div class="value" id="kpi-churn">—</div><div class="sub" id="kpi-churn-rate">—</div></div>
+    <div class="kpi-card success"><div class="label">Transactions</div><div class="value" id="kpi-txns">—</div><div class="sub">Total processed</div></div>
+</div>
+<div class="chart-grid">
+    <div class="card"><div class="card-title">Customer Segment Distribution</div><div class="chart-container"><canvas id="chart-segments"></canvas></div></div>
+    <div class="card"><div class="card-title">Fraud by Transaction Type</div><div class="chart-container"><canvas id="chart-fraud-type"></canvas></div></div>
+</div>
+<div class="chart-grid">
+    <div class="card"><div class="card-title">Loan Type Distribution</div><div class="chart-container"><canvas id="chart-loan-types"></canvas></div></div>
+    <div class="card"><div class="card-title">KYC Risk Category Distribution</div><div class="chart-container"><canvas id="chart-risk-cat"></canvas></div></div>
+</div>
+<div class="card">
+    <div class="card-title">Model Performance Summary</div>
+    <table><thead><tr><th>Model</th><th>Domain</th><th>Algorithm</th><th>AUC</th><th>Precision</th><th>Recall</th><th>F1</th><th>Train Samples</th></tr></thead>
+    <tbody id="model-table-body"></tbody></table>
+</div>
+<div class="footer-note">FinSight AI Platform · Synthetic data mimicking real banking patterns · Models: scikit-learn & XGBoost</div>
+{% endblock %}
+{% block scripts %}
+<script>
+const COLORS = ['#1a237e','#3949ab','#00bfa5','#fb8c00','#e53935','#43a047','#8e24aa','#00897b'];
+const algoMap = {'credit_risk':'XGBoost','fraud_detection':'XGBoost','kyc_aml':'Random Forest','churn':'XGBoost'};
+const domainMap = {'credit_risk':'Retail Banking','fraud_detection':'Retail / Payments','kyc_aml':'Commercial Banking','churn':'Retail Banking'};
+fetch('/api/dashboard').then(r=>r.json()).then(data=>{
+    document.getElementById('kpi-customers').textContent=data.total_customers.toLocaleString();
+    document.getElementById('kpi-segments').textContent=Object.keys(data.segment_distribution).length+' segments';
+    document.getElementById('kpi-fraud').textContent=data.fraud_count.toLocaleString();
+    document.getElementById('kpi-fraud-rate').textContent=data.fraud_rate+'% fraud rate';
+    document.getElementById('kpi-defaults').textContent=data.default_count.toLocaleString();
+    document.getElementById('kpi-default-rate').textContent=data.default_rate+'% default rate';
+    document.getElementById('kpi-kyc').textContent=data.kyc_alerts.toLocaleString();
+    document.getElementById('kpi-txns').textContent=data.total_transactions.toLocaleString();
+    document.getElementById('kpi-churn').textContent=data.churn_count.toLocaleString();
+    document.getElementById('kpi-churn-rate').textContent=data.churn_rate+'% churn rate';
+    new Chart(document.getElementById('chart-segments'),{type:'doughnut',data:{labels:Object.keys(data.segment_distribution),datasets:[{data:Object.values(data.segment_distribution),backgroundColor:COLORS}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'right'}}}});
+    new Chart(document.getElementById('chart-fraud-type'),{type:'bar',data:{labels:Object.keys(data.fraud_by_type),datasets:[{data:Object.values(data.fraud_by_type),backgroundColor:'#e53935'}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}}}});
+    new Chart(document.getElementById('chart-loan-types'),{type:'bar',data:{labels:Object.keys(data.loan_type_distribution),datasets:[{data:Object.values(data.loan_type_distribution),backgroundColor:'#1a237e'}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},indexAxis:'y'}});
+    new Chart(document.getElementById('chart-risk-cat'),{type:'doughnut',data:{labels:Object.keys(data.risk_category_distribution),datasets:[{data:Object.values(data.risk_category_distribution),backgroundColor:['#43a047','#fb8c00','#e53935','#b71c1c']}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'right'}}}});
+    let tbody=document.getElementById('model-table-body');
+    for(const[key,m]of Object.entries(data.model_metrics)){
+        tbody.innerHTML+=`<tr><td><strong>${key.replace(/_/g,' ').replace(/\b\w/g,c=>c.toUpperCase())}</strong></td><td>${domainMap[key]}</td><td>${algoMap[key]}</td><td><span class="badge badge-success">${m.auc}</span></td><td>${m.precision}</td><td>${m.recall}</td><td>${m.f1}</td><td>${m.train_samples.toLocaleString()}</td></tr>`;
+    }
+});
+</script>
+{% endblock %}

@@ -1,0 +1,34 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="page-header"><h2>Fraud Detection</h2><p>Real-time transaction fraud scoring using XGBoost — Retail Banking & Payments</p></div>
+<div class="card"><div class="card-title">Transaction Details</div>
+<div class="form-grid">
+    <div class="form-group"><label>Transaction Amount (₹)</label><input type="number" id="amount" value="25000" step="100"></div>
+    <div class="form-group"><label>Transaction Type</label><select id="txn_type"><option value="POS">POS</option><option value="ATM Withdrawal">ATM Withdrawal</option><option value="Online Transfer">Online Transfer</option><option value="UPI Payment" selected>UPI Payment</option><option value="NEFT">NEFT</option><option value="RTGS">RTGS</option><option value="Cheque">Cheque</option><option value="International">International</option></select></div>
+    <div class="form-group"><label>Channel</label><select id="channel"><option value="Mobile App" selected>Mobile App</option><option value="Internet Banking">Internet Banking</option><option value="Branch">Branch</option><option value="ATM">ATM</option><option value="POS Terminal">POS Terminal</option></select></div>
+    <div class="form-group"><label>Merchant</label><select id="merchant"><option value="Amazon">Amazon</option><option value="Flipkart">Flipkart</option><option value="Big Bazaar">Big Bazaar</option><option value="DMart">DMart</option><option value="Reliance">Reliance</option><option value="Swiggy">Swiggy</option><option value="Zomato">Zomato</option><option value="IRCTC">IRCTC</option><option value="Petrol Pump">Petrol Pump</option><option value="Unknown Merchant">Unknown Merchant</option></select></div>
+    <div class="form-group"><label>Hour of Day (0-23)</label><input type="number" id="hour_of_day" value="14" min="0" max="23"></div>
+    <div class="form-group"><label>Day of Week (0=Mon, 6=Sun)</label><input type="number" id="day_of_week" value="2" min="0" max="6"></div>
+    <div class="form-group"><label>International Transaction</label><select id="is_international"><option value="0" selected>No</option><option value="1">Yes</option></select></div>
+</div>
+<div style="display:flex;gap:12px;margin-top:8px;"><button class="btn btn-primary" onclick="predictFraud()">Score Transaction</button><button class="btn btn-secondary" onclick="loadSample()">Load Random Sample</button></div>
+</div>
+<div class="result-box" id="result"><h3 id="result-title"></h3><div id="result-body"></div></div>
+<div class="card" style="margin-top:20px;"><div class="card-title">How It Works</div><p style="font-size:0.88rem;color:var(--text-muted);line-height:1.6;">The fraud detection model uses XGBoost trained on 120,000 transactions with a 5.2% fraud rate. Features include transaction amount, time patterns, merchant risk, channel, and international indicators. SMOTE balances the minority fraud class. The model achieves an AUC of 0.90, enabling real-time scoring with millisecond latency.</p></div>
+{% endblock %}
+{% block scripts %}
+<script>
+function predictFraud(){
+    const d={amount:amount.value,txn_type:txn_type.value,channel:channel.value,merchant:merchant.value,hour_of_day:hour_of_day.value,day_of_week:day_of_week.value,is_international:is_international.value};
+    fetch('/api/fraud/predict',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(d)}).then(r=>r.json()).then(res=>{
+        const box=document.getElementById('result');let cls='approve';
+        if(res.fraud_probability>40)cls='danger';else if(res.fraud_probability>15)cls='warn';
+        box.className='result-box show '+cls;
+        const color=res.fraud_probability>40?'#e53935':res.fraud_probability>15?'#fb8c00':'#43a047';
+        result_title.innerHTML=`Fraud Score: ${res.fraud_probability}% — ${res.prediction}`;
+        result_body.innerHTML=`<p style="font-size:1rem;font-weight:600;margin-bottom:8px;">${res.action}</p><div class="prob-bar"><div class="prob-fill" style="width:${res.fraud_probability}%;background:${color};"></div></div><div class="divider"></div><p style="font-size:0.82rem;color:var(--text-muted);margin-bottom:6px;">Risk Indicators:</p>${res.risk_indicators.map(r=>`<div class="info-item"><span class="key">•</span><span class="val">${r}</span></div>`).join('')}`;
+    });
+}
+function loadSample(){fetch('/api/fraud/sample').then(r=>r.json()).then(s=>{amount.value=s.amount;txn_type.value=s.txn_type;channel.value=s.channel;merchant.value=s.merchant;hour_of_day.value=s.hour_of_day;day_of_week.value=s.day_of_week;is_international.value=s.is_international;});}
+</script>
+{% endblock %}
