@@ -10,9 +10,6 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY app.py .
-COPY build_data_and_models.py .
-
-RUN python build_data_and_models.py
 
 EXPOSE $PORT
 

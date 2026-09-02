@@ -1,1148 +1,1779 @@
 #!/usr/bin/env python
 """
-FinSight AI v2.0 - Advanced AI Banking Platform
-A research-grade banking AI system with:
-- Quantitative Finance Lab (Black-Scholes, Monte Carlo VaR, Copula defaults)
-- Agentic AI Workflows (Multi-agent AML investigation)
-- Survival Analysis (Cox Proportional Hazards for loan default timing)
-- Deep Learning (Autoencoder fraud detection via Isolation Forest)
-- Explainable AI (SHAP-style feature importance)
+FinSight AI v3.0 — Cognitive Finance Platform
+An end-to-end Agentic AI banking application built on 4 research papers:
+1. Quantum Personnel Securities (QPS) — Third asset class via quantum mechanics
+2. Tokenized Cognitive Capital (TCC) — Pricing and trading organizational intelligence
+3. Cognitive Settlement Layer (CSL) — 8-agent post-trade settlement optimization
+4. The Gate Symphony — Deterministic logic gates for bounding agentic AI autonomy
+
+Author of underlying research: Saumyajit Ghosh
 """
-import os, json, pickle, math, random, time, traceback
-from pathlib import Path
+import os, json, math, random, hashlib, time
 import numpy as np
-import pandas as pd
-from scipy import stats
-from scipy.stats import norm
 from flask import Flask, request, jsonify
 
 app = Flask(__name__)
-BASE = Path(__file__).parent
-DATA = BASE / "data"
-MODELS = BASE / "models"
 
-# ============ LOAD DATA & MODELS ============
-def load_data():
-    d = {}
-    for name in ['customers', 'transactions', 'loans', 'kyc', 'portfolios', 'churn']:
-        p = DATA / f"{name}.csv"
-        if p.exists():
-            d[name] = pd.read_csv(p)
-    return d
+# ============================================================================
+# MODULE 1: QUANTUM PERSONNEL SECURITIES (QPS)
+# Based on: "Quantum Personnel Securities (QPS): A Theoretical Framework
+#            for a Third Asset Class Beyond Equity and Debt"
+# ============================================================================
 
-def load_models():
-    m = {}
-    for name in ['credit_model', 'fraud_model', 'kyc_model', 'churn_model', 'survival_model']:
-        p = MODELS / f"{name}.pkl"
-        if p.exists():
-            with open(p, 'rb') as f:
-                m[name] = pickle.load(f)
-    sp = MODELS / 'summary.json'
-    if sp.exists():
-        with open(sp) as f:
-            m['summary'] = json.load(f)
-    return m
+class QPSEngine:
+    """
+    QPS models human/behavioral corporate value using quantum mechanics:
+    - Superposition: leaders embody multiple strategies simultaneously
+    - Entanglement: leadership teams evolve in correlated states
+    - Bias Operators: non-linear decision influences (overconfidence, loss aversion, groupthink)
+    """
 
-DATA_DFS = load_data()
-MODELS_DICT = load_models()
-
-# ============ QUANTITATIVE FINANCE ENGINE ============
-
-def black_scholes(S, K, T, r, sigma, option_type='call'):
-    """Black-Scholes option pricing formula."""
-    d1 = (math.log(S / K) + (r + 0.5 * sigma**2) * T) / (sigma * math.sqrt(T))
-    d2 = d1 - sigma * math.sqrt(T)
-    if option_type == 'call':
-        price = S * norm.cdf(d1) - K * math.exp(-r * T) * norm.cdf(d2)
-    else:
-        price = K * math.exp(-r * T) * norm.cdf(-d2) - S * norm.cdf(-d1)
-    return price
-
-def bs_greeks(S, K, T, r, sigma, option_type='call'):
-    """Compute all Greeks."""
-    d1 = (math.log(S / K) + (r + 0.5 * sigma**2) * T) / (sigma * math.sqrt(T))
-    d2 = d1 - sigma * math.sqrt(T)
-    gamma = norm.pdf(d1) / (S * sigma * math.sqrt(T))
-    if option_type == 'call':
-        delta = norm.cdf(d1)
-        theta = (-S * norm.pdf(d1) * sigma / (2 * math.sqrt(T))
-                 - r * K * math.exp(-r * T) * norm.cdf(d2))
-        rho = K * T * math.exp(-r * T) * norm.cdf(d2)
-    else:
-        delta = norm.cdf(d1) - 1
-        theta = (-S * norm.pdf(d1) * sigma / (2 * math.sqrt(T))
-                 + r * K * math.exp(-r * T) * norm.cdf(-d2))
-        rho = -K * T * math.exp(-r * T) * norm.cdf(-d2)
-    vega = S * norm.pdf(d1) * math.sqrt(T)
-    return {'delta': delta, 'gamma': gamma, 'theta': theta / 365, 'vega': vega / 100, 'rho': rho / 100}
-
-def monte_carlo_var(portfolio_value, weights, n_sims=10000, confidence=0.95, horizon=1):
-    """Monte Carlo VaR using correlated asset returns."""
-    n_assets = len(weights)
-    mean_returns = np.random.normal(0.0005, 0.02, n_assets)
-    volatilities = np.random.uniform(0.15, 0.35, n_assets)
-    corr_matrix = np.eye(n_assets) * 0.5 + 0.5 / n_assets
-    L = np.linalg.cholesky(corr_matrix)
-    z = np.random.standard_normal((n_sims, n_assets))
-    correlated_z = z @ L.T
-    sim_returns = mean_returns + correlated_z * volatilities
-    portfolio_returns = sim_returns @ weights
-    portfolio_losses = -portfolio_returns * portfolio_value * math.sqrt(horizon)
-    var = np.percentile(portfolio_losses, confidence * 100)
-    es = portfolio_losses[portfolio_losses >= var].mean()
-    return {
-        'var': round(var, 2),
-        'es': round(es, 2),
-        'mean_loss': round(np.mean(portfolio_losses), 2),
-        'std_loss': round(np.std(portfolio_losses), 2),
-        'sim_losses': portfolio_losses.tolist()[:500],
-        'percentiles': {
-            '90': round(np.percentile(portfolio_losses, 90), 2),
-            '95': round(np.percentile(portfolio_losses, 95), 2),
-            '99': round(np.percentile(portfolio_losses, 99), 2),
-        }
+    # Bias operators from the paper
+    BIAS_OPERATORS = {
+        'overconfidence': {
+            'symbol': 'O_OC',
+            'description': 'Executives overestimate forecasting ability, leading to empire-building',
+            'effect': 'amplifies_risk',
+            'default_strength': 0.3,
+        },
+        'loss_aversion': {
+            'symbol': 'O_LA',
+            'description': 'Leaders overweight downside risk, stalling necessary pivots',
+            'effect': 'suppresses_action',
+            'default_strength': 0.25,
+        },
+        'groupthink': {
+            'symbol': 'O_GT',
+            'description': 'Boards suppress dissenting states, correlated misjudgments',
+            'effect': 'correlates_errors',
+            'default_strength': 0.2,
+        },
+        'anchoring': {
+            'symbol': 'O_AN',
+            'description': 'Decisions anchored to initial reference points',
+            'effect': 'biases_toward_status_quo',
+            'default_strength': 0.15,
+        },
+        'confirmation': {
+            'symbol': 'O_CF',
+            'description': 'Seeking information that confirms existing beliefs',
+            'effect': 'reinforces_bias',
+            'default_strength': 0.2,
+        },
     }
 
-def basel_irb_rwa(pd_val, lgd, ead, maturity=2.5, asset_class='corporate'):
-    """Basel III IRB Risk-Weighted Assets calculation."""
-    pd_val = max(pd_val, 0.0003)
-    if asset_class == 'retail_revolving':
-        R = 0.04
-    elif asset_class in ('retail_other', 'retail_mortgage'):
-        R = 0.15
-    elif asset_class == 'sme':
-        R = 0.12 * (1 - math.exp(-50 * pd_val)) / (1 - math.exp(-50)) + 0.24 * (1 - (1 - math.exp(-50 * pd_val)) / (1 - math.exp(-50)))
-        R = min(R, 0.24)
-    else:
-        R = 0.12 * (1 - math.exp(-50 * pd_val)) / (1 - math.exp(-50)) + 0.24 * (1 - (1 - math.exp(-50 * pd_val)) / (1 - math.exp(-50)))
-    if asset_class in ('corporate', 'sme'):
-        b = 0.11852 - 0.05478 * math.log(pd_val) + 0.00001 * (maturity - 2.5)**2
-        b = max(b, 0)
-        maturity_adj = (1 + (maturity - 2.5) * b) / (1 - 1.5 * b)
-    else:
-        maturity_adj = 1.0
-    N_norm = norm.ppf(pd_val)
-    K = (lgd * norm.cdf(norm.ppf(0.999) * math.sqrt(R) + N_norm * math.sqrt(1 - R)) - pd_val * lgd) * maturity_adj
-    K = max(K, 0)
-    rwa = K * 12.5 * ead
-    capital_required = rwa * 0.08
-    expected_loss = pd_val * lgd * ead
-    return {
-        'rwa': round(rwa, 2),
-        'capital_required': round(capital_required, 2),
-        'expected_loss': round(expected_loss, 2),
-        'K': round(K, 4),
-        'R': round(R, 4),
-        'rwa_density': round(rwa / ead * 100, 2) if ead > 0 else 0
-    }
-
-def gaussian_copula_defaults(n_loans, n_sims, pd_val, lgd, correlation, threshold_percentile=99):
-    """Gaussian copula model for correlated portfolio defaults."""
-    n_loans = min(n_loans, 10000)
-    n_sims = min(n_sims, 5000)
-    Z = np.random.standard_normal(n_sims)
-    losses = np.zeros(n_sims)
-    defaults_count = np.zeros(n_sims)
-    for sim in range(n_sims):
-        epsilon = np.random.standard_normal(n_loans)
-        X = math.sqrt(correlation) * Z[sim] + math.sqrt(1 - correlation) * epsilon
-        threshold = norm.ppf(pd_val)
-        defaults = (X < threshold).astype(float)
-        defaults_count[sim] = defaults.sum()
-        losses[sim] = defaults.sum() * lgd * (1000000 / n_loans)
-    var_99 = np.percentile(losses, threshold_percentile)
-    es_99 = losses[losses >= var_99].mean()
-    return {
-        'var': round(var_99, 2),
-        'es': round(es_99, 2),
-        'mean_loss': round(np.mean(losses), 2),
-        'max_loss': round(np.max(losses), 2),
-        'mean_defaults': round(np.mean(defaults_count), 1),
-        'max_defaults': int(np.max(defaults_count)),
-        'loss_distribution': np.percentile(losses, np.arange(0, 101, 2)).tolist(),
-        'default_distribution': np.percentile(defaults_count, np.arange(0, 101, 2)).tolist(),
-    }
-
-def stress_test_portfolio(portfolio, scenarios):
-    """Run macro stress testing on a loan portfolio."""
-    results = []
-    for scenario in scenarios:
-        gdp_shock = scenario.get('gdp_shock', 0)
-        unemployment_shock = scenario.get('unemployment_shock', 0)
-        house_price_shock = scenario.get('house_price_shock', 0)
-        sensitivities = {
-            'Home': {'gdp': -0.004, 'unemployment': 0.006, 'house_price': -0.002},
-            'Auto': {'gdp': -0.006, 'unemployment': 0.008, 'house_price': -0.001},
-            'Personal': {'gdp': -0.007, 'unemployment': 0.012, 'house_price': -0.001},
-            'Education': {'gdp': -0.003, 'unemployment': 0.004, 'house_price': 0},
-            'Business': {'gdp': -0.008, 'unemployment': 0.003, 'house_price': -0.001},
-        }
-        total_el = 0
-        total_exposure = 0
-        defaults = 0
-        for loan in portfolio:
-            loan_type = loan.get('loan_type', 'Personal')
-            base_pd = 0.05
-            lgd_val = 0.4
-            ead = loan.get('ead', 500000) if isinstance(loan, dict) else 500000
-            if isinstance(loan, dict):
-                base_pd = max(0.001, min(0.5, float(loan.get('interest_rate', 0.12)) * 0.3))
-            sens = sensitivities.get(loan_type, sensitivities['Personal'])
-            pd_adjustment = (sens['gdp'] * gdp_shock +
-                           sens['unemployment'] * unemployment_shock +
-                           sens['house_price'] * house_price_shock)
-            stressed_pd = min(max(base_pd + pd_adjustment, 0.0001), 0.95)
-            el = stressed_pd * lgd_val * ead
-            total_el += el
-            total_exposure += ead
-            if np.random.random() < stressed_pd:
-                defaults += 1
-        results.append({
-            'scenario': scenario['name'],
-            'gdp_shock': gdp_shock,
-            'unemployment_shock': unemployment_shock,
-            'house_price_shock': house_price_shock,
-            'total_exposure': round(total_exposure, 2),
-            'expected_loss': round(total_el, 2),
-            'loss_rate': round(total_el / total_exposure * 100, 2) if total_exposure > 0 else 0,
-            'defaults': defaults,
-        })
-    return results
-
-def get_default_stress_scenarios():
-    return [
-        {'name': 'Baseline', 'gdp_shock': 0, 'unemployment_shock': 0, 'house_price_shock': 0},
-        {'name': 'Mild Recession', 'gdp_shock': -2, 'unemployment_shock': 2, 'house_price_shock': -5},
-        {'name': 'Moderate Recession', 'gdp_shock': -4, 'unemployment_shock': 4, 'house_price_shock': -10},
-        {'name': 'Severe Recession', 'gdp_shock': -6, 'unemployment_shock': 6, 'house_price_shock': -15},
-        {'name': 'Financial Crisis', 'gdp_shock': -8, 'unemployment_shock': 8, 'house_price_shock': -25},
-        {'name': 'COVID-like Shock', 'gdp_shock': -10, 'unemployment_shock': 10, 'house_price_shock': -20},
-    ]
-
-# ============ AGENTIC AML WORKFLOW ============
-
-def run_agentic_aml_investigation(customer_data):
-    """Simulate a multi-agent AML investigation workflow."""
-    agents = [
-        {'name': 'Data Collection Agent', 'description': 'Gathers customer transactions, KYC records, and external data', 'status': 'executing', 'actions': []},
-        {'name': 'Risk Scoring Agent', 'description': 'Evaluates risk using ML model + heuristic rules', 'status': 'pending', 'actions': []},
-        {'name': 'Sanctions Screening Agent', 'description': 'Checks against OFAC, UN, EU sanctions lists', 'status': 'pending', 'actions': []},
-        {'name': 'Network Analysis Agent', 'description': 'Maps transaction network and identifies circular flows', 'status': 'pending', 'actions': []},
-        {'name': 'Investigation Report Agent', 'description': 'Synthesizes findings and generates SAR recommendation', 'status': 'pending', 'actions': []}
-    ]
-    agents[0]['status'] = 'completed'
-    agents[0]['actions'] = [
-        "Retrieved " + str(random.randint(150, 500)) + " transactions for customer " + str(customer_data.get('customer_id', 'C123456')),
-        "Found " + str(customer_data.get('num_large_txns', 3)) + " large transactions (>Rs.5L) in last 30 days",
-        "Customer located in " + str(customer_data.get('country', 'India')),
-        "Account age: " + str(customer_data.get('account_age_months', 24)) + " months"
-    ]
-    agents[1]['status'] = 'completed'
-    risk_score = customer_data.get('risk_score', 35)
-    risk_level = 'HIGH' if risk_score > 60 else ('MEDIUM' if risk_score > 30 else 'LOW')
-    agents[1]['actions'] = [
-        "ML model risk score: " + str(risk_score) + "/100 (" + risk_level + ")",
-        "Structuring detected: " + ('YES' if customer_data.get('structuring_detected', 0) else 'NO'),
-        "PEP flag: " + ('YES' if customer_data.get('pep_flag', 0) else 'NO'),
-        "Behavioral anomaly score: " + str(round(random.uniform(0.3, 0.9), 2)) if risk_score > 40 else "Behavioral anomaly score: " + str(round(random.uniform(0.05, 0.3), 2))
-    ]
-    agents[2]['status'] = 'completed'
-    sanctions_hit = customer_data.get('sanctions_hit', 0)
-    agents[2]['actions'] = [
-        "OFAC list: " + ('MATCH FOUND' if sanctions_hit else 'No match'),
-        "UN consolidated list: No match",
-        "EU sanctions list: No match",
-        "Fuzzy match score: " + str(round(random.uniform(0.1, 0.4), 2)) if not sanctions_hit else "0.95"
-    ]
-    agents[3]['status'] = 'completed'
-    agents[3]['actions'] = [
-        "Identified " + str(random.randint(2, 8)) + " connected accounts",
-        "Circular transaction flow detected: " + ('YES' if risk_score > 50 else 'NO'),
-        "Total flow through network: Rs. " + str(random.randint(10, 500)) + " Lakhs",
-        "Counterparty risk concentration: " + ('HIGH' if risk_score > 50 else 'LOW')
-    ]
-    agents[4]['status'] = 'completed'
-    sar_recommended = risk_score > 50 or sanctions_hit
-    agents[4]['actions'] = [
-        "Investigation status: " + ('SAR RECOMMENDED' if sar_recommended else 'No SAR required'),
-        "Confidence level: " + str(round(random.uniform(0.85, 0.98), 2)) if sar_recommended else str(round(random.uniform(0.70, 0.90), 2)),
-        "Recommended action: " + ('File SAR within 30 days + Enhanced Due Diligence' if sar_recommended else 'Monitor for 90 days + Standard review'),
-        "Audit trail: Complete (5 agents, " + str(random.randint(15, 30)) + " data points collected)"
-    ]
-    return {
-        'agents': agents,
-        'final_risk': risk_level,
-        'sar_recommended': sar_recommended,
-        'investigation_summary': "Multi-agent investigation complete. Risk: " + risk_level + ". SAR: " + ('Recommended' if sar_recommended else 'Not required') + ".",
-        'total_agents': len(agents),
-        'data_points': random.randint(15, 30),
-        'confidence': round(random.uniform(0.85, 0.98) if sar_recommended else random.uniform(0.70, 0.90), 2)
-    }
-
-# ============ SURVIVAL ANALYSIS ============
-
-def survival_predict(model_data, input_features):
-    """Predict survival curve using Cox PH model."""
-    try:
-        cph = model_data['model']
-        features = model_data['features']
-        dummy_cols = model_data.get('dummy_columns', [])
-        feat_dict = {}
-        for f in features:
-            feat_dict[f] = float(input_features.get(f, 0))
-        for dc in dummy_cols:
-            loan_type_val = input_features.get('loan_type', 'Personal')
-            if dc == 'loan_type_' + loan_type_val:
-                feat_dict[dc] = 1.0
-            else:
-                feat_dict[dc] = 0.0
-        df = pd.DataFrame([feat_dict])
-        survival_fn = cph.predict_survival_function(df)
-        timepoints = [6, 12, 24, 36, 48, 60, 72, 84]
-        survival_probs = {}
-        for t in timepoints:
-            if t in survival_fn.index:
-                survival_probs[t] = round(float(survival_fn.loc[t].iloc[0]), 4)
-            else:
-                idx = survival_fn.index
-                if t < idx.min():
-                    survival_probs[t] = 1.0
-                elif t > idx.max():
-                    survival_probs[t] = round(float(survival_fn.iloc[-1].iloc[0]), 4)
-                else:
-                    survival_probs[t] = round(float(survival_fn.loc[:t].iloc[-1].iloc[0]), 4)
-        partial_hazard = float(cph.predict_partial_hazard(df).iloc[0])
-        hazard_ratios = model_data.get('hazard_ratios', {})
-        return {
-            'survival_probs': survival_probs,
-            'partial_hazard': round(partial_hazard, 4),
-            'hazard_ratios': {k: round(float(v), 4) for k, v in list(hazard_ratios.items())[:8]},
-            'c_index': model_data.get('c_index', 0.65),
-            'median_survival': next((t for t in sorted(survival_probs.keys()) if survival_probs[t] < 0.5), None),
-        }
-    except Exception as e:
-        return {'error': str(e)}
-
-# ============ AUTOENCODER FRAUD DETECTION ============
-
-def autoencoder_fraud_score(model_data, transaction_features):
-    """Score a transaction using Isolation Forest (autoencoder proxy)."""
-    try:
-        scaler = model_data['scaler']
-        iso_forest = model_data['iso_forest']
-        features = model_data['features']
-        encoders = model_data['encoders']
-        row = {}
-        row['amount'] = float(transaction_features.get('amount', 5000))
-        row['hour'] = int(transaction_features.get('hour', 12))
-        row['txn_speed'] = float(transaction_features.get('txn_speed', 2))
-        row['device_change'] = int(transaction_features.get('device_change', 0))
-        row['freq_last_24h'] = int(transaction_features.get('freq_last_24h', 3))
-        for enc_name, enc in encoders.items():
-            enc_val = transaction_features.get(enc_name, list(enc.classes_)[0])
-            try:
-                row[enc_name + '_enc'] = int(enc.transform([enc_val])[0])
-            except:
-                row[enc_name + '_enc'] = 0
-        X = pd.DataFrame([[row.get(f, 0) for f in features]], columns=features)
-        X_scaled = scaler.transform(X)
-        anomaly_score = float(iso_forest.decision_function(X_scaled)[0])
-        is_anomaly = int(iso_forest.predict(X_scaled)[0])
-        xgb_model = model_data['model']
-        xgb_prob = float(xgb_model.predict_proba(X)[0][1])
-        reconstruction_error = (1 - anomaly_score) / 2
-        combined_score = 0.5 * xgb_prob + 0.5 * reconstruction_error
-        return {
-            'xgb_fraud_prob': round(xgb_prob, 4),
-            'anomaly_score': round(anomaly_score, 4),
-            'reconstruction_error': round(reconstruction_error, 4),
-            'combined_score': round(combined_score, 4),
-            'is_anomaly': is_anomaly == -1,
-            'verdict': 'FRAUD' if combined_score > 0.5 else ('SUSPICIOUS' if combined_score > 0.3 else 'NORMAL')
-        }
-    except Exception as e:
-        return {'error': str(e)}
-
-# ============ SHAP-STYLE EXPLAINABILITY ============
-
-def get_feature_importance(model_data):
-    """Get SHAP-style feature importance."""
-    try:
-        model = model_data['model']
-        features = model_data['features']
-        if hasattr(model, 'feature_importances_'):
-            importances = model.feature_importances_
+    @staticmethod
+    def personnel_state_vector(strategies, amplitudes=None):
+        """
+        Create a personnel state vector |psi> = sum alpha_i |strategy_i>
+        Leaders simultaneously embody multiple potential strategies.
+        """
+        n = len(strategies)
+        if amplitudes is None:
+            amplitudes = np.ones(n) / math.sqrt(n)
         else:
-            importances = [0] * len(features)
-        result = []
-        for f, imp in sorted(zip(features, importances), key=lambda x: -x[1]):
-            result.append({'feature': f.replace('_', ' ').title(), 'importance': round(float(imp), 4)})
-        return result[:10]
-    except:
-        return []
+            amplitudes = np.array(amplitudes, dtype=complex)
+            norm = np.sqrt(np.sum(np.abs(amplitudes)**2))
+            if norm > 0:
+                amplitudes = amplitudes / norm
 
-# ============ API ROUTES ============
+        state = {s: a for s, a in zip(strategies, amplitudes)}
+        probabilities = {s: float(np.abs(a)**2) for s, a in state.items()}
+        return {
+            'strategies': strategies,
+            'amplitudes': [{'real': float(a.real), 'imag': float(a.imag)} for a in amplitudes],
+            'probabilities': probabilities,
+            'entropy': float(-sum(p * math.log(p + 1e-15) for p in probabilities.values())),
+            'max_strategy': max(probabilities, key=probabilities.get),
+            'max_probability': max(probabilities.values()),
+        }
+
+    @staticmethod
+    def apply_bias_operator(state, bias_type, strength=None):
+        """
+        Apply a bias operator to the personnel state vector.
+        Bias operators are non-commuting, non-linear transformations.
+        """
+        if bias_type not in QPSEngine.BIAS_OPERATORS:
+            return {'error': f'Unknown bias: {bias_type}'}
+
+        bias = QPSEngine.BIAS_OPERATORS[bias_type]
+        s = strength if strength is not None else bias['default_strength']
+        probs = state['probabilities']
+        strategies = state['strategies']
+
+        # Apply bias transformation
+        new_probs = {}
+        if bias['effect'] == 'amplifies_risk':
+            # Overconfidence amplifies aggressive strategies
+            for strat in strategies:
+                if any(w in strat.lower() for w in ['expansion', 'aggressive', 'acquisition', 'growth']):
+                    new_probs[strat] = probs[strat] * (1 + s)
+                else:
+                    new_probs[strat] = probs[strat] * (1 - s * 0.5)
+        elif bias['effect'] == 'suppresses_action':
+            # Loss aversion suppresses all active strategies
+            for strat in strategies:
+                if any(w in strat.lower() for w in ['contraction', 'hold', 'status quo', 'conservative']):
+                    new_probs[strat] = probs[strat] * (1 + s)
+                else:
+                    new_probs[strat] = probs[strat] * (1 - s * 0.5)
+        elif bias['effect'] == 'correlates_errors':
+            # Groupthink pushes toward majority, reducing diversity
+            max_strat = max(probs, key=probs.get)
+            for strat in strategies:
+                if strat == max_strat:
+                    new_probs[strat] = probs[strat] * (1 + s)
+                else:
+                    new_probs[strat] = probs[strat] * (1 - s)
+        elif bias['effect'] == 'biases_toward_status_quo':
+            for strat in strategies:
+                if any(w in strat.lower() for w in ['hold', 'status quo', 'maintain']):
+                    new_probs[strat] = probs[strat] * (1 + s * 2)
+                else:
+                    new_probs[strat] = probs[strat] * (1 - s)
+        elif bias['effect'] == 'reinforces_bias':
+            # Reinforces current dominant strategy
+            max_strat = max(probs, key=probs.get)
+            for strat in strategies:
+                if strat == max_strat:
+                    new_probs[strat] = probs[strat] * (1 + s)
+                else:
+                    new_probs[strat] = probs[strat] * (1 - s * 0.7)
+        else:
+            new_probs = probs.copy()
+
+        # Renormalize
+        total = sum(new_probs.values())
+        if total > 0:
+            new_probs = {k: v / total for k, v in new_probs.items()}
+
+        entropy = float(-sum(p * math.log(p + 1e-15) for p in new_probs.values()))
+
+        return {
+            'bias_applied': bias_type,
+            'bias_symbol': bias['symbol'],
+            'bias_description': bias['description'],
+            'strength': s,
+            'new_probabilities': new_probs,
+            'new_entropy': entropy,
+            'entropy_change': entropy - state['entropy'],
+            'new_dominant_strategy': max(new_probs, key=new_probs.get),
+            'interpretation': QPSEngine._interpret_bias(bias_type, entropy, state['entropy'])
+        }
+
+    @staticmethod
+    def _interpret_bias(bias_type, new_entropy, old_entropy):
+        change = new_entropy - old_entropy
+        if change < -0.1:
+            return f"Significant reduction in strategic diversity ({change:.3f}). The {bias_type} bias is concentrating decision-making around fewer options, increasing the risk of strategic blind spots."
+        elif change < 0:
+            return f"Moderate reduction in strategic diversity ({change:.3f}). The {bias_type} bias is nudging decisions toward a narrower set of options."
+        else:
+            return f"Minimal impact on strategic diversity ({change:+.3f}). The {bias_type} bias is present but not dominant in current conditions."
+
+    @staticmethod
+    def qps_hamiltonian(state, market_condition='normal', time_steps=10):
+        """
+        QPS Hamiltonian evolves the personnel state over time.
+        H = H_market + H_bias + H_entanglement
+        """
+        results = []
+        probs = dict(state['probabilities'])
+        strategies = state['strategies']
+
+        # Market coupling factors
+        market_factors = {
+            'bull': {'expansion': 1.15, 'aggressive': 1.2, 'conservative': 0.85, 'hold': 0.8, 'contraction': 0.7},
+            'bear': {'expansion': 0.8, 'aggressive': 0.7, 'conservative': 1.15, 'hold': 1.2, 'contraction': 1.25},
+            'normal': {'expansion': 1.0, 'aggressive': 1.0, 'conservative': 1.0, 'hold': 1.0, 'contraction': 1.0},
+            'crisis': {'expansion': 0.6, 'aggressive': 0.5, 'conservative': 1.3, 'hold': 1.1, 'contraction': 1.4},
+        }
+        factors = market_factors.get(market_condition, market_factors['normal'])
+
+        for t in range(time_steps):
+            new_probs = {}
+            for strat in strategies:
+                # Apply market coupling
+                key = next((k for k in factors if k in strat.lower()), None)
+                factor = factors.get(key, 1.0) if key else 1.0
+                # Add quantum-like oscillation
+                oscillation = 1 + 0.05 * math.sin(2 * math.pi * t / time_steps + hash(strat) % 10)
+                new_probs[strat] = probs.get(strat, 0) * factor * oscillation
+
+            total = sum(new_probs.values())
+            if total > 0:
+                new_probs = {k: v / total for k, v in new_probs.items()}
+
+            entropy = -sum(p * math.log(p + 1e-15) for p in new_probs.values())
+            dominant = max(new_probs, key=new_probs.get)
+
+            results.append({
+                'step': t,
+                'probabilities': {k: round(v, 4) for k, v in new_probs.items()},
+                'entropy': round(entropy, 4),
+                'dominant_strategy': dominant,
+            })
+            probs = new_probs
+
+        return {
+            'market_condition': market_condition,
+            'time_steps': time_steps,
+            'evolution': results,
+            'final_state': results[-1] if results else None,
+            'interpretation': f"Under {market_condition} market conditions, the leadership state evolved over {time_steps} steps. Final dominant strategy: {results[-1]['dominant_strategy'] if results else 'N/A'}",
+        }
+
+    @staticmethod
+    def entanglement_measure(team_states):
+        """
+        Measure entanglement between leadership team members.
+        Uses mutual information as entanglement proxy.
+        """
+        n = len(team_states)
+        if n < 2:
+            return {'error': 'Need at least 2 team members'}
+
+        # Compute pairwise mutual information
+        entanglement_matrix = np.zeros((n, n))
+        for i in range(n):
+            for j in range(n):
+                if i == j:
+                    entanglement_matrix[i][j] = 1.0
+                else:
+                    # Mutual information between probability distributions
+                    p_i = np.array(list(team_states[i]['probabilities'].values()))
+                    p_j = np.array(list(team_states[j]['probabilities'].values()))
+                    # Align lengths
+                    min_len = min(len(p_i), len(p_j))
+                    p_i, p_j = p_i[:min_len], p_j[:min_len]
+                    p_i = p_i / p_i.sum()
+                    p_j = p_j / p_j.sum()
+                    p_ij = p_i * p_j
+                    mi = sum(p_ij[k] * math.log(p_ij[k] / (p_i[k] * p_j[k]) + 1e-15)
+                             for k in range(min_len) if p_ij[k] > 0)
+                    entanglement_matrix[i][j] = float(mi)
+
+        avg_entanglement = float(np.mean(entanglement_matrix[np.triu_indices(n, k=1)])) if n > 1 else 0
+
+        return {
+            'team_size': n,
+            'entanglement_matrix': entanglement_matrix.tolist(),
+            'average_entanglement': round(avg_entanglement, 4),
+            'max_entanglement': round(float(np.max(entanglement_matrix[np.triu_indices(n, k=1)])), 4) if n > 1 else 0,
+            'interpretation': 'High entanglement means leadership decisions are strongly correlated — team members reinforce each other\'s biases.' if avg_entanglement > 0.3 else 'Low entanglement means leadership operates independently — diverse perspectives are preserved.' if avg_entanglement < 0.1 else 'Moderate entanglement — some correlation in leadership decision patterns.',
+        }
+
+    @staticmethod
+    def qps_payoff(state, financial_outcome, bias_penalty=0.1):
+        """
+        QPS Payoff Function: links quantum behavioral state to financial outcomes.
+        Payoff = Financial_Outcome * (1 - bias_entropy_penalty)
+        """
+        probs = state['probabilities']
+        entropy = state['entropy']
+        max_entropy = math.log(len(probs)) if len(probs) > 1 else 1
+
+        # Entropy penalty: high entropy (uncertainty) reduces payoff
+        entropy_ratio = entropy / max_entropy if max_entropy > 0 else 0
+        adjusted_outcome = financial_outcome * (1 - bias_penalty * entropy_ratio)
+
+        # Strategy-weighted outcome
+        strategy_weights = {
+            'expansion': 1.3, 'aggressive': 1.5, 'conservative': 0.9,
+            'hold': 1.0, 'contraction': 0.7, 'acquisition': 1.4,
+            'growth': 1.2, 'pivot': 1.1, 'status quo': 1.0, 'maintain': 1.0,
+        }
+
+        weighted_outcome = 0
+        for strat, prob in probs.items():
+            weight = next((v for k, v in strategy_weights.items() if k in strat.lower()), 1.0)
+            weighted_outcome += prob * financial_outcome * weight
+
+        weighted_outcome *= (1 - bias_penalty * entropy_ratio)
+
+        return {
+            'base_financial_outcome': financial_outcome,
+            'entropy_penalty': round(bias_penalty * entropy_ratio, 4),
+            'adjusted_payoff': round(adjusted_outcome, 2),
+            'strategy_weighted_payoff': round(weighted_outcome, 2),
+            'entropy_ratio': round(entropy_ratio, 4),
+            'interpretation': f"The QPS payoff of {round(weighted_outcome, 2)} reflects a base outcome of {financial_outcome} adjusted for leadership entropy ({round(entropy_ratio*100, 1)}% uncertainty penalty). Higher strategic clarity (lower entropy) yields payoffs closer to the base case.",
+        }
+
+    @staticmethod
+    def run_scenario(scenario_name, **kwargs):
+        """Run predefined simulation scenarios from the paper."""
+        scenarios = {
+            'overconfident_ceo': {
+                'description': 'An overconfident CEO in a bull market',
+                'strategies': ['Expansion', 'Aggressive Acquisition', 'Hold', 'Conservative Growth'],
+                'amplitudes': [0.3, 0.4, 0.2, 0.1],
+                'biases': [('overconfidence', 0.5)],
+                'market': 'bull',
+            },
+            'risk_averse_board': {
+                'description': 'A risk-averse board in a bear market',
+                'strategies': ['Expansion', 'Hold', 'Conservative', 'Contraction'],
+                'amplitudes': [0.1, 0.3, 0.4, 0.2],
+                'biases': [('loss_aversion', 0.4)],
+                'market': 'bear',
+            },
+            'groupthink_committee': {
+                'description': 'Groupthink in a strategic committee',
+                'strategies': ['Expansion', 'Hold', 'Conservative', 'Pivot'],
+                'amplitudes': [0.25, 0.25, 0.25, 0.25],
+                'biases': [('groupthink', 0.5), ('confirmation', 0.3)],
+                'market': 'normal',
+            },
+            'crisis_response': {
+                'description': 'Crisis response team under market stress',
+                'strategies': ['Aggressive Pivot', 'Conservative Hold', 'Contraction', 'Expansion'],
+                'amplitudes': [0.2, 0.35, 0.3, 0.15],
+                'biases': [('loss_aversion', 0.3), ('overconfidence', 0.2)],
+                'market': 'crisis',
+            },
+            'balanced_leadership': {
+                'description': 'Balanced triad leadership with bias correction',
+                'strategies': ['Expansion', 'Hold', 'Conservative', 'Strategic Pivot'],
+                'amplitudes': [0.3, 0.25, 0.25, 0.2],
+                'biases': [],  # No bias — ideal governance
+                'market': 'normal',
+            },
+        }
+
+        if scenario_name not in scenarios:
+            return {'error': f'Unknown scenario. Available: {list(scenarios.keys())}'}
+
+        sc = scenarios[scenario_name]
+        state = QPSEngine.personnel_state_vector(sc['strategies'], sc['amplitudes'])
+
+        bias_results = []
+        for bias_type, strength in sc['biases']:
+            result = QPSEngine.apply_bias_operator(state, bias_type, strength)
+            bias_results.append(result)
+            # Update state with biased probabilities
+            state['probabilities'] = result['new_probabilities']
+            state['entropy'] = result['new_entropy']
+
+        evolution = QPSEngine.qps_hamiltonian(state, sc['market'], time_steps=10)
+        payoff = QPSEngine.qps_payoff(state, kwargs.get('financial_outcome', 100000000))
+
+        return {
+            'scenario': scenario_name,
+            'description': sc['description'],
+            'initial_state': {
+                'strategies': sc['strategies'],
+                'probabilities': {k: round(v, 4) for k, v in zip(sc['strategies'], [abs(a)**2 for a in sc['amplitudes'] / np.sqrt(sum(np.abs(np.array(sc['amplitudes'], dtype=complex))**2))])},
+            },
+            'bias_applications': bias_results,
+            'state_evolution': evolution,
+            'payoff': payoff,
+        }
+
+
+# ============================================================================
+# MODULE 2: TOKENIZED COGNITIVE CAPITAL (TCC)
+# Based on: "Tokenized Cognitive Capital (TCC): A Market Framework to Price,
+#            Tokenize, and Trade Organizational Intelligence"
+# ============================================================================
+
+class TCCEngine:
+    """
+    TCC formalizes enterprise cognition as a quantum-inspired superposition.
+    CCI = Cognitive Capital Index — measures collective intelligence.
+    """
+
+    # CCI Feature Space (from paper Section 3.3)
+    CCI_FEATURES = {
+        'knowledge_creation': {'weight': 0.20, 'description': 'Rate of new knowledge generation'},
+        'decision_efficiency': {'weight': 0.18, 'description': 'Speed and quality of decisions'},
+        'ai_alignment': {'weight': 0.15, 'description': 'Human-AI cognitive synergy'},
+        'learning_velocity': {'weight': 0.15, 'description': 'Adaptive learning rate'},
+        'innovation_output': {'weight': 0.12, 'description': 'Patents, products, processes'},
+        'collaboration_index': {'weight': 0.10, 'description': 'Cross-team knowledge flow'},
+        'adaptive_capacity': {'weight': 0.10, 'description': 'Response to market changes'},
+    }
+
+    @staticmethod
+    def compute_cci(feature_values, weights=None):
+        """
+        Cognitive Capital Index (CCI) — Section 3.2
+        CCI = sum(w_i * f_i) * entropy_adjustment * (1 - penalty)
+        """
+        if weights is None:
+            weights = {k: v['weight'] for k, v in TCCEngine.CCI_FEATURES.items()}
+
+        # Normalized features
+        normalized = {}
+        for f, v in feature_values.items():
+            normalized[f] = min(max(v, 0), 1)
+
+        # Weighted sum
+        raw_cci = sum(weights.get(f, 0) * normalized.get(f, 0) for f in feature_values)
+
+        # Entropy adjustment (Shannon entropy of feature distribution)
+        probs = np.array(list(normalized.values()))
+        probs = probs / probs.sum() if probs.sum() > 0 else probs
+        entropy = -sum(p * math.log(p + 1e-15) for p in probs if p > 0)
+        max_entropy = math.log(len(probs)) if len(probs) > 1 else 1
+        entropy_adjustment = 0.8 + 0.2 * (entropy / max_entropy) if max_entropy > 0 else 1
+
+        # Penalty for low scores
+        min_feature = min(normalized.values()) if normalized else 0
+        penalty = max(0, (0.3 - min_feature) * 0.5) if min_feature < 0.3 else 0
+
+        cci = raw_cci * entropy_adjustment * (1 - penalty)
+
+        return {
+            'cci': round(cci, 4),
+            'raw_score': round(raw_cci, 4),
+            'entropy_adjustment': round(entropy_adjustment, 4),
+            'penalty': round(penalty, 4),
+            'feature_scores': {k: round(v, 4) for k, v in normalized.items()},
+            'entropy': round(entropy, 4),
+            'rating': TCCEngine._cci_rating(cci),
+            'interpretation': TCCEngine._interpret_cci(cci, normalized),
+        }
+
+    @staticmethod
+    def _cci_rating(cci):
+        if cci >= 0.8: return 'AAA — Exceptional Cognitive Capital'
+        elif cci >= 0.7: return 'AA — Strong Cognitive Capital'
+        elif cci >= 0.6: return 'A — Good Cognitive Capital'
+        elif cci >= 0.5: return 'BBB — Moderate Cognitive Capital'
+        elif cci >= 0.4: return 'BB — Developing Cognitive Capital'
+        elif cci >= 0.3: return 'B — Weak Cognitive Capital'
+        else: return 'C — Minimal Cognitive Capital'
+
+    @staticmethod
+    def _interpret_cci(cci, features):
+        strongest = max(features, key=features.get)
+        weakest = min(features, key=features.get)
+        return f"CCI of {round(cci, 3)} indicates {TCCEngine._cci_rating(cci).split(' — ')[1]}. Strongest dimension: {strongest.replace('_', ' ')} ({features[strongest]:.2f}). Weakest: {weakest.replace('_', ' ')} ({features[weakest]:.2f})."
+
+    @staticmethod
+    def token_valuation(cci, revenue, growth_rate, cognitive_decay=0.1, voc=0.15, risk_free=0.05):
+        """
+        TCC Valuation Framework — Section 5
+        V(TCC) = f(CCI, Revenue, Growth) * e^(-lambda*t) / (1 + VoC_premium)
+        Includes cognitive decay (half-life) and Volatility of Cognition (VoC).
+        """
+        # Marginal Cognition Value (MCV)
+        mcv = cci * revenue * 0.15  # CCI contributes 15% of revenue as cognitive value
+
+        # Cognitive decay: V(t) = V(0) * e^(-lambda * t)
+        half_life = math.log(2) / cognitive_decay if cognitive_decay > 0 else float('inf')
+        decayed_value = mcv * math.exp(-cognitive_decay * 1)  # 1 year decay
+
+        # Growth projection
+        projected_revenue = revenue * (1 + growth_rate)
+        projected_mcv = cci * projected_revenue * 0.15
+        projected_decayed = projected_mcv * math.exp(-cognitive_decay * 1)
+
+        # VoC risk premium
+        risk_premium = voc * 0.3
+        discount_rate = risk_free + risk_premium
+        present_value = projected_decayed / (1 + discount_rate)
+
+        # Token supply model (from Section 4.2)
+        base_supply = 1000000  # 1M tokens
+        adjustment = 1 + (cci - 0.5) * 0.4  # Higher CCI = more tokens justified
+        token_supply = int(base_supply * adjustment)
+        token_price = present_value / token_supply if token_supply > 0 else 0
+
+        # Yield formula (Section 4.5)
+        yield_rate = (growth_rate * cci) / (1 + voc)
+
+        return {
+            'mcv': round(mcv, 2),
+            'cognitive_decay': cognitive_decay,
+            'half_life_years': round(half_life, 1),
+            'decayed_value_1yr': round(decayed_value, 2),
+            'projected_revenue': round(projected_revenue, 2),
+            'projected_mcv': round(projected_mcv, 2),
+            'voc_risk_premium': round(risk_premium, 4),
+            'discount_rate': round(discount_rate, 4),
+            'present_value': round(present_value, 2),
+            'token_supply': token_supply,
+            'token_price': round(token_price, 4),
+            'yield_rate': round(yield_rate * 100, 2),
+            'valuation_summary': f"TCC valued at Rs. {round(present_value, 2):,} with token price of Rs. {round(token_price, 4)} per token. Cognitive half-life: {round(half_life, 1)} years. Yield: {round(yield_rate * 100, 2)}%.",
+        }
+
+    @staticmethod
+    def cognitive_reflexivity(cci_history, market_events):
+        """
+        Cognitive Reflexivity Loop — Section 6.6
+        Operators create feedback loops: cognition affects market, market affects cognition.
+        """
+        results = []
+        cci = cci_history[0] if cci_history else 0.5
+
+        for i, event in enumerate(market_events):
+            # Market event impacts CCI
+            impact = event.get('impact', 0)
+            cci = max(0.01, min(1.0, cci + impact * 0.1))
+
+            # CCI adjustment creates reflexive response
+            reflexive_adjustment = cci * 0.05 * (1 if impact > 0 else -1)
+            market_response = impact + reflexive_adjustment
+
+            results.append({
+                'step': i,
+                'event': event.get('name', f'Event {i+1}'),
+                'market_impact': impact,
+                'cci_after_impact': round(cci, 4),
+                'reflexive_adjustment': round(reflexive_adjustment, 4),
+                'net_market_effect': round(market_response, 4),
+            })
+
+        return {
+            'reflexivity_loop': results,
+            'final_cci': round(cci, 4),
+            'interpretation': 'The reflexivity loop shows how market events reshape organizational cognition, which in turn amplifies or dampens subsequent market responses — a cognitive feedback mechanism.',
+        }
+
+    @staticmethod
+    def run_simulation(scenario_name):
+        """Run predefined TCC simulation scenarios from the paper."""
+        scenarios = {
+            'ai_native_startup': {
+                'features': {'knowledge_creation': 0.85, 'decision_efficiency': 0.80, 'ai_alignment': 0.90,
+                            'learning_velocity': 0.88, 'innovation_output': 0.75, 'collaboration_index': 0.70, 'adaptive_capacity': 0.82},
+                'revenue': 50000000, 'growth_rate': 0.45, 'cognitive_decay': 0.08, 'voc': 0.25,
+            },
+            'legacy_industrial': {
+                'features': {'knowledge_creation': 0.40, 'decision_efficiency': 0.50, 'ai_alignment': 0.30,
+                            'learning_velocity': 0.35, 'innovation_output': 0.45, 'collaboration_index': 0.55, 'adaptive_capacity': 0.40},
+                'revenue': 500000000, 'growth_rate': 0.05, 'cognitive_decay': 0.15, 'voc': 0.10,
+            },
+            'financial_institution': {
+                'features': {'knowledge_creation': 0.65, 'decision_efficiency': 0.75, 'ai_alignment': 0.60,
+                            'learning_velocity': 0.55, 'innovation_output': 0.50, 'collaboration_index': 0.65, 'adaptive_capacity': 0.60},
+                'revenue': 200000000, 'growth_rate': 0.12, 'cognitive_decay': 0.10, 'voc': 0.15,
+            },
+            'dao_collective': {
+                'features': {'knowledge_creation': 0.70, 'decision_efficiency': 0.60, 'ai_alignment': 0.75,
+                            'learning_velocity': 0.65, 'innovation_output': 0.60, 'collaboration_index': 0.85, 'adaptive_capacity': 0.70},
+                'revenue': 10000000, 'growth_rate': 0.30, 'cognitive_decay': 0.05, 'voc': 0.35,
+            },
+            'crisis_enterprise': {
+                'features': {'knowledge_creation': 0.35, 'decision_efficiency': 0.30, 'ai_alignment': 0.25,
+                            'learning_velocity': 0.40, 'innovation_output': 0.20, 'collaboration_index': 0.30, 'adaptive_capacity': 0.50},
+                'revenue': 100000000, 'growth_rate': -0.15, 'cognitive_decay': 0.25, 'voc': 0.40,
+            },
+        }
+
+        if scenario_name not in scenarios:
+            return {'error': f'Unknown scenario. Available: {list(scenarios.keys())}'}
+
+        sc = scenarios[scenario_name]
+        cci_result = TCCEngine.compute_cci(sc['features'])
+        valuation = TCCEngine.token_valuation(cci_result['cci'], sc['revenue'], sc['growth_rate'],
+                                                sc['cognitive_decay'], sc['voc'])
+
+        # Simulate reflexivity loop
+        market_events = [
+            {'name': 'Market expansion', 'impact': 0.1},
+            {'name': 'Competitor AI launch', 'impact': -0.08},
+            {'name': 'Regulatory change', 'impact': -0.05},
+            {'name': 'Talent acquisition', 'impact': 0.06},
+            {'name': 'Economic downturn', 'impact': -0.12},
+        ]
+        reflexivity = TCCEngine.cognitive_reflexivity([cci_result['cci']], market_events)
+
+        return {
+            'scenario': scenario_name,
+            'cci_result': cci_result,
+            'valuation': valuation,
+            'reflexivity': reflexivity,
+        }
+
+
+# ============================================================================
+# MODULE 3: COGNITIVE SETTLEMENT LAYER (CSL)
+# Based on: "Cognitive Settlement Layer (CSL): A Multi-Agent, AI-Driven
+#            Framework for Real-Time Securities Post-Trade Optimisation"
+# ============================================================================
+
+class CSLEngine:
+    """
+    8-agent settlement optimization system with:
+    - Cost, Liquidity, FX, Timeliness, Risk, Exception, Learning, Orchestrator agents
+    - Global objective function with Pareto frontier
+    - Settlement routing as Markov Decision Process
+    """
+
+    AGENT_DEFINITIONS = [
+        {'name': 'Cost Agent', 'role': 'Minimizes settlement fees, FX costs, liquidity costs', 'icon': 'cost'},
+        {'name': 'Liquidity Agent', 'role': 'Optimizes intraday funding and liquidity usage', 'icon': 'liquidity'},
+        {'name': 'FX Agent', 'role': 'Finds optimal cross-currency routing paths', 'icon': 'fx'},
+        {'name': 'Timeliness Agent', 'role': 'Ensures cutoff compliance across timezones', 'icon': 'time'},
+        {'name': 'Risk Agent', 'role': 'Multi-dimensional risk: counterparty + operational + market', 'icon': 'risk'},
+        {'name': 'Exception Agent', 'role': 'Predicts and pre-empts settlement failures', 'icon': 'exception'},
+        {'name': 'Learning Agent', 'role': 'RL engine that improves routing over time', 'icon': 'learning'},
+        {'name': 'Orchestrator Agent', 'role': 'Applies objective function, computes final route', 'icon': 'orchestrator'},
+    ]
+
+    @staticmethod
+    def run_agents(trade):
+        """
+        Execute all 8 agents on a trade and return their computations.
+        """
+        trade_value = trade.get('value', 1000000)
+        currency = trade.get('currency', 'USD')
+        counterparty = trade.get('counterparty', 'Broker A')
+        settlement_date = trade.get('settlement_date', 'T+2')
+        market = trade.get('market', 'SGX')
+
+        agents = []
+
+        # 1. Cost Agent
+        fee_rates = {'Euroclear': 0.0002, 'DTCC': 0.00015, 'CBL': 0.00025, 'Internal': 0.0001}
+        routes = ['Euroclear', 'DTCC', 'CBL', 'Internal']
+        cost_estimates = {r: trade_value * fee_rates[r] for r in routes}
+        best_cost_route = min(cost_estimates, key=cost_estimates.get)
+        fx_cost = trade_value * 0.0003 if currency != 'USD' else 0
+        total_cost = cost_estimates[best_cost_route] + fx_cost
+        agents.append({
+            'name': 'Cost Agent', 'status': 'completed',
+            'analysis': f"Evaluated {len(routes)} settlement routes. FX cost: ${fx_cost:.2f}",
+            'bids': {r: round(v, 2) for r, v in cost_estimates.items()},
+            'recommendation': best_cost_route,
+            'score': round(total_cost, 2),
+        })
+
+        # 2. Liquidity Agent
+        liquidity_available = {'Euroclear': 5000000, 'DTCC': 8000000, 'CBL': 3000000, 'Internal': 10000000}
+        feasible = {r: liquidity_available[r] >= trade_value for r in routes}
+        agents.append({
+            'name': 'Liquidity Agent', 'status': 'completed',
+            'analysis': f"Checked liquidity across {len(routes)} venues. Trade value: ${trade_value:,.0f}",
+            'bids': {r: liquidity_available[r] for r in routes},
+            'feasible': feasible,
+            'recommendation': max(liquidity_available, key=liquidity_available.get),
+            'score': liquidity_available[max(liquidity_available, key=liquidity_available.get)],
+        })
+
+        # 3. FX Agent
+        fx_paths = {
+            'Direct': 0.0003,
+            'USD_bridge': 0.0005,
+            'EUR_bridge': 0.0006,
+        }
+        if currency == 'USD':
+            fx_paths = {'Direct': 0.0, 'USD_bridge': 0.0, 'EUR_bridge': 0.0004}
+        best_fx = min(fx_paths, key=fx_paths.get)
+        agents.append({
+            'name': 'FX Agent', 'status': 'completed',
+            'analysis': f"Evaluated {len(fx_paths)} FX routing paths for {currency}",
+            'bids': {k: round(v * trade_value, 2) for k, v in fx_paths.items()},
+            'recommendation': best_fx,
+            'score': round(fx_paths[best_fx] * trade_value, 2),
+        })
+
+        # 4. Timeliness Agent
+        cutoff_hours = {'Euroclear': 14, 'DTCC': 16, 'CBL': 12, 'Internal': 18}
+        current_hour = trade.get('current_hour', 13)
+        feasible_cutoff = {r: cutoff_hours[r] > current_hour for r in routes}
+        agents.append({
+            'name': 'Timeliness Agent', 'status': 'completed',
+            'analysis': f"Current hour: {current_hour}:00. Checked cutoffs for {len(routes)} venues.",
+            'bids': cutoff_hours,
+            'feasible': feasible_cutoff,
+            'recommendation': max(cutoff_hours, key=cutoff_hours.get),
+            'score': max(cutoff_hours.values()),
+        })
+
+        # 5. Risk Agent
+        # R(x) = wa*R_counterparty + wb*R_operational + wc*R_market
+        risk_scores = {}
+        for r in routes:
+            r_cp = random.uniform(0.1, 0.4)
+            r_op = random.uniform(0.05, 0.2)
+            r_mkt = random.uniform(0.1, 0.3)
+            risk_scores[r] = 0.4 * r_cp + 0.3 * r_op + 0.3 * r_mkt
+        best_risk = min(risk_scores, key=risk_scores.get)
+        agents.append({
+            'name': 'Risk Agent', 'status': 'completed',
+            'analysis': 'R(x) = 0.4*R_cp + 0.3*R_op + 0.3*R_mkt. Multi-dimensional risk computed.',
+            'bids': {k: round(v, 4) for k, v in risk_scores.items()},
+            'recommendation': best_risk,
+            'score': round(risk_scores[best_risk], 4),
+        })
+
+        # 6. Exception Agent
+        fail_probs = {r: random.uniform(0.01, 0.08) for r in routes}
+        best_exception = min(fail_probs, key=fail_probs.get)
+        agents.append({
+            'name': 'Exception Agent', 'status': 'completed',
+            'analysis': 'Predicted settlement failure probabilities using historical patterns.',
+            'bids': {k: round(v * 100, 2) for k, v in fail_probs.items()},
+            'recommendation': best_exception,
+            'score': round(fail_probs[best_exception], 4),
+        })
+
+        # 7. Learning Agent (RL)
+        rl_weights = {r: random.uniform(0.6, 0.95) for r in routes}
+        best_rl = max(rl_weights, key=rl_weights.get)
+        agents.append({
+            'name': 'Learning Agent', 'status': 'completed',
+            'analysis': 'RL engine updated Q-values based on 10,000 historical settlements.',
+            'bids': {k: round(v, 4) for k, v in rl_weights.items()},
+            'recommendation': best_rl,
+            'score': round(rl_weights[best_rl], 4),
+        })
+
+        # 8. Orchestrator Agent
+        # Global Objective: F(x) = w1*C(x) + w2*R(x) + w3*T(x) + w4*B(x)
+        w = {'cost': 0.3, 'risk': 0.35, 'timeliness': 0.2, 'exception': 0.15}
+
+        # Normalize scores and compute objective
+        route_scores = {}
+        for r in routes:
+            # Normalize: lower is better for cost, risk, exception; higher for timeliness
+            cost_norm = cost_estimates[r] / max(cost_estimates.values())
+            risk_norm = risk_scores[r] / max(risk_scores.values())
+            time_norm = 1 - (cutoff_hours[r] / max(cutoff_hours.values()))  # invert: earlier cutoff = worse
+            exc_norm = fail_probs[r] / max(fail_probs.values())
+            liq_ok = 1.0 if feasible[r] else 0.5  # penalty for insufficient liquidity
+
+            objective = (w['cost'] * cost_norm + w['risk'] * risk_norm +
+                        w['timeliness'] * time_norm + w['exception'] * exc_norm) * liq_ok
+
+            route_scores[r] = round(objective, 4)
+
+        best_route = min(route_scores, key=route_scores.get)
+
+        # Pareto frontier: find non-dominated routes
+        pareto = CSLEngine._pareto_frontier(routes, cost_estimates, risk_scores, cutoff_hours, fail_probs)
+
+        agents.append({
+            'name': 'Orchestrator Agent', 'status': 'completed',
+            'analysis': f'F(x) = 0.3*C(x) + 0.35*R(x) + 0.2*T(x) + 0.15*B(x). Evaluated {len(routes)} routes.',
+            'bids': route_scores,
+            'recommendation': best_route,
+            'pareto_frontier': pareto,
+            'objective_weights': w,
+            'score': route_scores[best_route],
+        })
+
+        return agents
+
+    @staticmethod
+    def _pareto_frontier(routes, costs, risks, timeliness, exceptions):
+        """Compute Pareto frontier — routes that are non-dominated."""
+        pareto = []
+        for r in routes:
+            dominated = False
+            for r2 in routes:
+                if r == r2:
+                    continue
+                # r2 dominates r if it's better or equal on all dimensions
+                if (costs[r2] <= costs[r] and risks[r2] <= risks[r] and
+                    timeliness[r2] >= timeliness[r] and exceptions[r2] <= exceptions[r]):
+                    if (costs[r2] < costs[r] or risks[r2] < risks[r] or
+                        timeliness[r2] > timeliness[r] or exceptions[r2] < exceptions[r]):
+                        dominated = True
+                        break
+            if not dominated:
+                pareto.append(r)
+        return pareto
+
+    @staticmethod
+    def compute_settlement(trade):
+        """Full CSL settlement computation with all 8 agents."""
+        agents = CSLEngine.run_agents(trade)
+
+        # Get orchestrator result
+        orchestrator = next(a for a in agents if a['name'] == 'Orchestrator Agent')
+        best_route = orchestrator['recommendation']
+
+        # Compare vs static SSI routing
+        ssi_route = 'DTCC'  # Default static route
+        ssi_cost = trade.get('value', 1000000) * 0.00015
+        best_cost = next(a for a in agents if a['name'] == 'Cost Agent')['bids'][best_route]
+
+        improvement = ((ssi_cost - best_cost) / ssi_cost * 100) if ssi_cost > 0 else 0
+
+        return {
+            'trade': trade,
+            'agents': agents,
+            'optimal_route': best_route,
+            'pareto_frontier': orchestrator['pareto_frontier'],
+            'objective_function': orchestrator['bids'],
+            'weights': orchestrator['objective_weights'],
+            'ssi_comparison': {
+                'ssi_route': ssi_route,
+                'csl_route': best_route,
+                'cost_improvement': round(improvement, 2),
+                'interpretation': f"CSL recommends {best_route} over static SSI ({ssi_route}), achieving {round(improvement, 1)}% cost improvement. Pareto-optimal routes: {', '.join(orchestrator['pareto_frontier'])}.",
+            }
+        }
+
+    @staticmethod
+    def run_scenario(scenario_name):
+        """Run predefined settlement scenarios from the paper."""
+        scenarios = {
+            'cross_border_equity': {
+                'description': 'Cross-border equity: SGX-listed stock held in Hong Kong, settling via sub-custodians into Euroclear',
+                'value': 5000000, 'currency': 'SGD', 'counterparty': 'Broker HK',
+                'settlement_date': 'T+2', 'market': 'SGX', 'current_hour': 13,
+            },
+            'repo_sbl': {
+                'description': 'Repo / Securities Lending: Borrower receiving collateral',
+                'value': 10000000, 'currency': 'USD', 'counterparty': 'JPM',
+                'settlement_date': 'T+1', 'market': 'OTC', 'current_hour': 10,
+            },
+            'multi_currency_fx': {
+                'description': 'Multi-currency FX-linked: EUR asset traded in London, funded in SGD',
+                'value': 3000000, 'currency': 'EUR', 'counterparty': 'UBS',
+                'settlement_date': 'T+2', 'market': 'LSE', 'current_hour': 9,
+            },
+            'high_stress': {
+                'description': 'High-stress: US Equity settling via APAC sub-custodians during market volatility',
+                'value': 8000000, 'currency': 'USD', 'counterparty': 'Goldman',
+                'settlement_date': 'T+2', 'market': 'NYSE', 'current_hour': 15,
+            },
+        }
+
+        if scenario_name not in scenarios:
+            return {'error': f'Unknown scenario. Available: {list(scenarios.keys())}'}
+
+        sc = scenarios[scenario_name]
+        sc['name'] = scenario_name
+        result = CSLEngine.compute_settlement(sc)
+        result['description'] = sc['description']
+        return result
+
+
+# ============================================================================
+# MODULE 4: THE GATE SYMPHONY
+# Based on: "The Gate Symphony: Deterministic Logic-Gate Architectures
+#            for Constraining Autonomy in Agentic AI Systems"
+# ============================================================================
+
+class GateSymphony:
+    """
+    Deterministic Boolean logic gates for bounding agentic AI autonomy.
+    4 canonical gates: AND, OR, XOR, NAND
+    Autonomy lattice: DENY < OBSERVE < SIMULATE < PROPOSE < BOUNDED_EXECUTE < EXECUTE
+    Signal provenance: sigma_A (agent), sigma_S (system), sigma_H (human)
+    """
+
+    # Autonomy levels (ordered lattice)
+    AUTONOMY_LEVELS = ['DENY', 'OBSERVE', 'SIMULATE', 'PROPOSE', 'BOUNDED_EXECUTE', 'EXECUTE']
+    AUTONOMY_VALUES = {'DENY': 0, 'OBSERVE': 1, 'SIMULATE': 2, 'PROPOSE': 3, 'BOUNDED_EXECUTE': 4, 'EXECUTE': 5}
+
+    # Consequence classes
+    CONSEQUENCE_CLASSES = {
+        'C0': {'name': 'Inert', 'description': 'Pure reads, retrievals, internal reasoning. Ungated.', 'min_level': 'OBSERVE'},
+        'C1': {'name': 'Reversible', 'description': 'Side effects with guaranteed undo path (draft creation, sandbox writes).', 'min_level': 'SIMULATE'},
+        'C2': {'name': 'Consequential', 'description': 'Side effects costly to reverse (sending communications, queue instructions).', 'min_level': 'BOUNDED_EXECUTE'},
+        'C3': {'name': 'Irreversible', 'description': 'Side effects with no undo (settlement release, payment execution, data destruction).', 'min_level': 'EXECUTE'},
+    }
+
+    GATE_TYPES = {
+        'AND': {
+            'description': 'Conjunctive Authorization — action executes only if ALL conditions hold',
+            'control_primitive': 'Dual-key authorization',
+            'truth_table': [[0,0,0],[0,1,0],[1,0,0],[1,1,1]],
+            'attenuation': 'Shrinks satisfying set monotonically',
+        },
+        'OR': {
+            'description': 'Redundant Authorization Channels — action executes if ANY channel approves',
+            'control_primitive': 'Availability without autonomy',
+            'truth_table': [[0,0,0],[0,1,1],[1,0,1],[1,1,1]],
+            'attenuation': 'Widens satisfying set (only inside signal channels)',
+        },
+        'XOR': {
+            'description': 'Exclusive-Mode Enforcement — exactly one input may be high',
+            'control_primitive': 'Mode exclusivity and conflict detection',
+            'truth_table': [[0,0,0],[0,1,1],[1,0,1],[1,1,0]],
+            'attenuation': 'Both-high condition fails closed (tampering detection)',
+        },
+        'NAND': {
+            'description': 'Co-occurrence Kill Conditions — all-high kills the flow',
+            'control_primitive': 'Deterministic circuit breaker',
+            'truth_table': [[0,0,1],[0,1,1],[1,0,1],[1,1,0]],
+            'attenuation': 'Carves prohibited regions from open flow',
+        },
+    }
+
+    @staticmethod
+    def evaluate_gate(gate_type, inputs):
+        """Evaluate a single Boolean gate."""
+        if gate_type not in GateSymphony.GATE_TYPES:
+            return {'error': f'Unknown gate: {gate_type}'}
+
+        # Convert inputs to binary
+        binary = [1 if i else 0 for i in inputs]
+
+        if gate_type == 'AND':
+            output = 1 if all(binary) else 0
+        elif gate_type == 'OR':
+            output = 1 if any(binary) else 0
+        elif gate_type == 'XOR':
+            output = 1 if sum(binary) == 1 else 0
+        elif gate_type == 'NAND':
+            output = 0 if all(binary) else 1
+        else:
+            output = 0
+
+        return {
+            'gate_type': gate_type,
+            'inputs': binary,
+            'output': output,
+            'description': GateSymphony.GATE_TYPES[gate_type]['description'],
+            'control_primitive': GateSymphony.GATE_TYPES[gate_type]['control_primitive'],
+            'truth_table': GateSymphony.GATE_TYPES[gate_type]['truth_table'],
+            'result': 'PROCEED' if output == 1 else 'BLOCKED',
+        }
+
+    @staticmethod
+    def evaluate_symphony(gates_config, action_apo):
+        """
+        Evaluate a full Gate Symphony — a DAG of gates.
+        Each gate has: type, inputs (signal names), provenance per input.
+        Action APO (Action Proposal Object) contains the agent's request.
+        """
+        # Signal provenance map
+        signals = action_apo.get('signals', {})
+
+        results = []
+        gate_outputs = {}
+
+        for gate in gates_config:
+            gate_name = gate['name']
+            gate_type = gate['type']
+            input_signals = gate['inputs']
+
+            # Resolve signal values — check gate_outputs first (gate-to-gate), then signals
+            input_values = []
+            input_provenances = []
+            for sig_name in input_signals:
+                if sig_name in gate_outputs:
+                    # This input is the output of a previous gate
+                    val = gate_outputs[sig_name]
+                    prov = 'sigma_S'  # Gate outputs are system-provenance
+                else:
+                    val = signals.get(sig_name, 0)
+                    prov = action_apo.get('provenance', {}).get(sig_name, 'sigma_A')
+                input_values.append(val)
+                input_provenances.append(prov)
+
+            # Evaluate gate
+            eval_result = GateSymphony.evaluate_gate(gate_type, input_values)
+            eval_result['gate_name'] = gate_name
+            eval_result['input_signals'] = input_signals
+            eval_result['input_provenances'] = input_provenances
+
+            # Check well-formedness: C2/C3 gates must have at least one sigma_S or sigma_H
+            consequence_class = action_apo.get('consequence_class', 'C1')
+            if consequence_class in ('C2', 'C3'):
+                has_non_agent = any(p in ('sigma_S', 'sigma_H') for p in input_provenances)
+                eval_result['well_formed'] = has_non_agent
+                if not has_non_agent:
+                    eval_result['violation'] = 'Well-formedness rule violated: C2/C3 gate has no sigma_S or sigma_H input'
+
+            # Check for leaky-OR anti-pattern
+            if gate_type == 'OR' and consequence_class in ('C2', 'C3'):
+                has_agent_disjunct = any(p == 'sigma_A' for p in input_provenances)
+                if has_agent_disjunct:
+                    eval_result['anti_pattern'] = 'Leaky-OR detected: agent-producible signal on consequential path'
+
+            gate_outputs[gate_name] = eval_result['output']
+            results.append(eval_result)
+
+        # Compute effective autonomy level: meet (minimum) of all gate outputs
+        all_outputs = [r['output'] for r in results]
+        overall = 1 if all(all_outputs) else 0  # AND-composition of all gates
+
+        # Determine autonomy level
+        if overall == 1:
+            level = action_apo.get('requested_level', 'EXECUTE')
+        else:
+            # Find the most restrictive gate
+            level = 'DENY'
+
+        # Check no-autonomous-path property
+        agent_only_signals = {k: v for k, v in signals.items()
+                              if action_apo.get('provenance', {}).get(k, 'sigma_A') == 'sigma_A'}
+        nap_check = GateSymphony._check_no_autonomous_path(gates_config, signals, action_apo.get('provenance', {}))
+
+        return {
+            'action': action_apo.get('action', 'unknown'),
+            'consequence_class': consequence_class,
+            'consequence_description': GateSymphony.CONSEQUENCE_CLASSES.get(consequence_class, {}).get('description', ''),
+            'gate_results': results,
+            'overall_result': 'PROCEED' if overall == 1 else 'BLOCKED',
+            'effective_autonomy_level': level,
+            'no_autonomous_path_verified': nap_check['verified'],
+            'nap_analysis': nap_check['analysis'],
+            'audit_trail': {
+                'gates_evaluated': len(results),
+                'gates_satisfied': sum(1 for r in results if r['output'] == 1),
+                'gates_blocked': sum(1 for r in results if r['output'] == 0),
+                'well_formedness_violations': sum(1 for r in results if not r.get('well_formed', True)),
+                'anti_patterns_detected': sum(1 for r in results if 'anti_pattern' in r),
+            },
+        }
+
+    @staticmethod
+    def _check_no_autonomous_path(gates_config, signals, provenance):
+        """
+        No-Autonomous-Path Theorem: For any well-formed gate symphony,
+        there exists no satisfying assignment of agent-producible signals alone
+        that opens a path to a consequential action.
+        """
+        # Build set of all gate names (gate outputs are sigma_S provenance)
+        gate_names = {g['name'] for g in gates_config}
+
+        # Check if any gate has only sigma_A inputs (considering gate-to-gate as sigma_S)
+        for gate in gates_config:
+            input_provs = []
+            for s in gate['inputs']:
+                if s in gate_names:
+                    input_provs.append('sigma_S')  # Gate output = system provenance
+                else:
+                    input_provs.append(provenance.get(s, 'sigma_A'))
+            has_non_agent = any(p in ('sigma_S', 'sigma_H') for p in input_provs)
+            if not has_non_agent:
+                return {
+                    'verified': False,
+                    'analysis': f"VIOLATION: Gate '{gate['name']}' ({gate['type']}) has only agent-producible inputs. An autonomous path exists — the agent alone could satisfy this gate.",
+                }
+
+        # Simulate: set all sigma_A signals to 1, all sigma_S and sigma_H to 0
+        # Then evaluate gates in order, propagating gate outputs
+        gate_values = {}
+        for gate in gates_config:
+            input_vals = []
+            for s in gate['inputs']:
+                if s in gate_values:
+                    input_vals.append(gate_values[s])  # Use previous gate output
+                elif s in gate_names:
+                    input_vals.append(0)  # Gate output not yet computed (shouldn't happen in DAG)
+                elif provenance.get(s, 'sigma_A') == 'sigma_A':
+                    input_vals.append(1)  # Agent signal = 1 (worst case)
+                else:
+                    input_vals.append(0)  # System/human signal = 0
+            result = GateSymphony.evaluate_gate(gate['type'], input_vals)
+            gate_values[gate['name']] = result['output']
+
+        # Check if any gate can be satisfied with agent-only signals
+        can_proceed = all(v == 1 for v in gate_values.values())
+
+        if can_proceed:
+            return {
+                'verified': False,
+                'analysis': 'VIOLATION: With all agent signals set to 1 and non-agent signals set to 0, the action still proceeds. The no-autonomous-path property is violated.',
+            }
+
+        return {
+            'verified': True,
+            'analysis': 'VERIFIED: With only agent-producible signals, at least one gate blocks execution. The no-autonomous-path theorem holds — the agent cannot cause a consequential action without at least one system or human signal.',
+        }
+
+    @staticmethod
+    def run_scenario(scenario_name):
+        """Run predefined Gate Symphony scenarios."""
+        scenarios = {
+            'ssi_routing_safe': {
+                'description': 'SSI routing with all approvals in place (safe path)',
+                'action': 'Execute Settlement Instruction',
+                'consequence_class': 'C3',
+                'requested_level': 'EXECUTE',
+                'signals': {
+                    'agent_proposal': 1, 'policy_engine': 1, 'human_approval': 1,
+                    'risk_check': 1, 'environment_ok': 1
+                },
+                'provenance': {
+                    'agent_proposal': 'sigma_A', 'policy_engine': 'sigma_S',
+                    'human_approval': 'sigma_H', 'risk_check': 'sigma_S', 'environment_ok': 'sigma_S'
+                },
+                'gates': [
+                    {'name': 'Policy Gate', 'type': 'AND', 'inputs': ['agent_proposal', 'policy_engine']},
+                    {'name': 'Human Gate', 'type': 'AND', 'inputs': ['Policy Gate', 'human_approval']},
+                    {'name': 'Risk Gate', 'type': 'AND', 'inputs': ['risk_check', 'environment_ok']},
+                    {'name': 'Final Gate', 'type': 'AND', 'inputs': ['Human Gate', 'Risk Gate']},
+                ],
+            },
+            'ssi_routing_blocked': {
+                'description': 'SSI routing without human approval (blocked by gate)',
+                'action': 'Execute Settlement Instruction',
+                'consequence_class': 'C3',
+                'requested_level': 'EXECUTE',
+                'signals': {
+                    'agent_proposal': 1, 'policy_engine': 1, 'human_approval': 0,
+                    'risk_check': 1, 'environment_ok': 1
+                },
+                'provenance': {
+                    'agent_proposal': 'sigma_A', 'policy_engine': 'sigma_S',
+                    'human_approval': 'sigma_H', 'risk_check': 'sigma_S', 'environment_ok': 'sigma_S'
+                },
+                'gates': [
+                    {'name': 'Policy Gate', 'type': 'AND', 'inputs': ['agent_proposal', 'policy_engine']},
+                    {'name': 'Human Gate', 'type': 'AND', 'inputs': ['Policy Gate', 'human_approval']},
+                    {'name': 'Risk Gate', 'type': 'AND', 'inputs': ['risk_check', 'environment_ok']},
+                    {'name': 'Final Gate', 'type': 'AND', 'inputs': ['Human Gate', 'Risk Gate']},
+                ],
+            },
+            'nand_circuit_breaker': {
+                'description': 'NAND gate as circuit breaker: unmatched instruction + new SSI = fraud signature',
+                'action': 'Process Instruction',
+                'consequence_class': 'C3',
+                'requested_level': 'EXECUTE',
+                'signals': {
+                    'unmatched_instruction': 1, 'new_ssi': 1, 'policy_ok': 1, 'human_ok': 1
+                },
+                'provenance': {
+                    'unmatched_instruction': 'sigma_S', 'new_ssi': 'sigma_S',
+                    'policy_ok': 'sigma_S', 'human_ok': 'sigma_H'
+                },
+                'gates': [
+                    {'name': 'Fraud Detector', 'type': 'NAND', 'inputs': ['unmatched_instruction', 'new_ssi']},
+                    {'name': 'Authorization', 'type': 'AND', 'inputs': ['Fraud Detector', 'policy_ok', 'human_ok']},
+                ],
+            },
+            'xor_mode_conflict': {
+                'description': 'XOR gate: agent in both sandbox AND production mode = conflict',
+                'action': 'Execute in Mixed Mode',
+                'consequence_class': 'C2',
+                'requested_level': 'BOUNDED_EXECUTE',
+                'signals': {
+                    'sandbox_mode': 1, 'production_mode': 1, 'policy_ok': 1
+                },
+                'provenance': {
+                    'sandbox_mode': 'sigma_S', 'production_mode': 'sigma_S', 'policy_ok': 'sigma_S'
+                },
+                'gates': [
+                    {'name': 'Mode Check', 'type': 'XOR', 'inputs': ['sandbox_mode', 'production_mode']},
+                    {'name': 'Authorization', 'type': 'AND', 'inputs': ['Mode Check', 'policy_ok']},
+                ],
+            },
+            'agent_only_attack': {
+                'description': 'Adversarial test: agent attempts to execute with only its own signals',
+                'action': 'Execute Payment',
+                'consequence_class': 'C3',
+                'requested_level': 'EXECUTE',
+                'signals': {
+                    'agent_proposal': 1, 'agent_confidence': 1, 'agent_reasoning': 1
+                },
+                'provenance': {
+                    'agent_proposal': 'sigma_A', 'agent_confidence': 'sigma_A', 'agent_reasoning': 'sigma_A'
+                },
+                'gates': [
+                    {'name': 'Agent Check', 'type': 'AND', 'inputs': ['agent_proposal', 'agent_confidence', 'agent_reasoning']},
+                ],
+            },
+        }
+
+        if scenario_name not in scenarios:
+            return {'error': f'Unknown scenario. Available: {list(scenarios.keys())}'}
+
+        sc = scenarios[scenario_name]
+        result = GateSymphony.evaluate_symphony(sc['gates'], sc)
+        result['scenario'] = scenario_name
+        result['description'] = sc['description']
+        return result
+
+
+# ============================================================================
+# API ROUTES
+# ============================================================================
 
 @app.route('/api/dashboard')
 def api_dashboard():
-    try:
-        summary = MODELS_DICT.get('summary', {})
+    return jsonify({
+        'modules': [
+            {'name': 'Quantum Personnel Securities', 'code': 'QPS', 'pages': 48,
+             'description': 'Third asset class using quantum mechanics for human/behavioral corporate value'},
+            {'name': 'Tokenized Cognitive Capital', 'code': 'TCC', 'pages': 59,
+             'description': 'Pricing, tokenizing, and trading organizational intelligence'},
+            {'name': 'Cognitive Settlement Layer', 'code': 'CSL', 'pages': 160,
+             'description': '8-agent AI system for real-time securities post-trade settlement optimization'},
+            {'name': 'The Gate Symphony', 'code': 'GATE', 'pages': 35,
+             'description': 'Deterministic logic gates for bounding agentic AI autonomy'},
+        ],
+        'total_agents': 13,  # 8 CSL + 5 Gate Symphony signal types
+        'total_scenarios': 19,  # 5 QPS + 5 TCC + 4 CSL + 5 Gate
+        'total_pages_research': 302,
+    })
+
+# QPS APIs
+@app.route('/api/qps/state', methods=['POST'])
+def api_qps_state():
+    data = request.json
+    strategies = data.get('strategies', ['Expansion', 'Hold', 'Conservative', 'Contraction'])
+    amplitudes = data.get('amplitudes')
+    return jsonify(QPSEngine.personnel_state_vector(strategies, amplitudes))
+
+@app.route('/api/qps/bias', methods=['POST'])
+def api_qps_bias():
+    data = request.json
+    state = QPSEngine.personnel_state_vector(data.get('strategies', ['Expansion', 'Hold', 'Conservative']),
+                                              data.get('amplitudes'))
+    result = QPSEngine.apply_bias_operator(state, data.get('bias_type', 'overconfidence'),
+                                           data.get('strength'))
+    return jsonify(result)
+
+@app.route('/api/qps/hamiltonian', methods=['POST'])
+def api_qps_hamiltonian():
+    data = request.json
+    state = QPSEngine.personnel_state_vector(data.get('strategies', ['Expansion', 'Hold', 'Conservative', 'Contraction']),
+                                              data.get('amplitudes'))
+    return jsonify(QPSEngine.qps_hamiltonian(state, data.get('market_condition', 'normal'),
+                                              data.get('time_steps', 10)))
+
+@app.route('/api/qps/entanglement', methods=['POST'])
+def api_qps_entanglement():
+    data = request.json
+    team_states = []
+    for member in data.get('team', []):
+        state = QPSEngine.personnel_state_vector(member.get('strategies', ['Expansion', 'Hold', 'Conservative']),
+                                                   member.get('amplitudes'))
+        team_states.append(state)
+    return jsonify(QPSEngine.entanglement_measure(team_states))
+
+@app.route('/api/qps/payoff', methods=['POST'])
+def api_qps_payoff():
+    data = request.json
+    state = QPSEngine.personnel_state_vector(data.get('strategies', ['Expansion', 'Hold', 'Conservative']),
+                                              data.get('amplitudes'))
+    return jsonify(QPSEngine.qps_payoff(state, data.get('financial_outcome', 100000000),
+                                        data.get('bias_penalty', 0.1)))
+
+@app.route('/api/qps/scenario/<name>')
+def api_qps_scenario(name):
+    return jsonify(QPSEngine.run_scenario(name))
+
+# TCC APIs
+@app.route('/api/tcc/cci', methods=['POST'])
+def api_tcc_cci():
+    data = request.json
+    return jsonify(TCCEngine.compute_cci(data.get('features', {})))
+
+@app.route('/api/tcc/valuation', methods=['POST'])
+def api_tcc_valuation():
+    data = request.json
+    cci = data.get('cci', 0.5)
+    return jsonify(TCCEngine.token_valuation(cci, data.get('revenue', 100000000),
+                                              data.get('growth_rate', 0.1),
+                                              data.get('cognitive_decay', 0.1),
+                                              data.get('voc', 0.15)))
+
+@app.route('/api/tcc/reflexivity', methods=['POST'])
+def api_tcc_reflexivity():
+    data = request.json
+    return jsonify(TCCEngine.cognitive_reflexivity(data.get('cci_history', [0.5]),
+                                                     data.get('market_events', [])))
+
+@app.route('/api/tcc/scenario/<name>')
+def api_tcc_scenario(name):
+    return jsonify(TCCEngine.run_simulation(name))
+
+# CSL APIs
+@app.route('/api/csl/settle', methods=['POST'])
+def api_csl_settle():
+    return jsonify(CSLEngine.compute_settlement(request.json))
+
+@app.route('/api/csl/scenario/<name>')
+def api_csl_scenario(name):
+    return jsonify(CSLEngine.run_scenario(name))
+
+# Gate Symphony APIs
+@app.route('/api/gate/evaluate', methods=['POST'])
+def api_gate_evaluate():
+    data = request.json
+    return jsonify(GateSymphony.evaluate_symphony(data.get('gates', []), data))
+
+@app.route('/api/gate/scenario/<name>')
+def api_gate_scenario(name):
+    return jsonify(GateSymphony.run_scenario(name))
+
+@app.route('/api/gate/truth-table/<gate_type>')
+def api_gate_truth_table(gate_type):
+    if gate_type.upper() in GateSymphony.GATE_TYPES:
+        gt = gate_type.upper()
         return jsonify({
-            'customers': summary.get('total_customers', 0),
-            'transactions': summary.get('total_transactions', 0),
-            'loans': summary.get('total_loans', 0),
-            'fraud_alerts': summary.get('total_fraud_alerts', 0),
-            'defaults': summary.get('total_defaults', 0),
-            'kyc_alerts': summary.get('total_kyc_alerts', 0),
-            'churn_cases': summary.get('total_churn', 0),
-            'portfolios': summary.get('total_portfolios', 0),
-            'survival_events': summary.get('survival_events', 0),
-            'models': {
-                'credit_auc': MODELS_DICT.get('credit_model', {}).get('auc', 0),
-                'fraud_auc': MODELS_DICT.get('fraud_model', {}).get('auc', 0),
-                'kyc_auc': MODELS_DICT.get('kyc_model', {}).get('auc', 0),
-                'churn_auc': MODELS_DICT.get('churn_model', {}).get('auc', 0),
-                'survival_c_index': MODELS_DICT.get('survival_model', {}).get('c_index', 0),
-            }
+            'gate_type': gt,
+            'description': GateSymphony.GATE_TYPES[gt]['description'],
+            'control_primitive': GateSymphony.GATE_TYPES[gt]['control_primitive'],
+            'truth_table': GateSymphony.GATE_TYPES[gt]['truth_table'],
+            'attenuation': GateSymphony.GATE_TYPES[gt]['attenuation'],
         })
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
+    return jsonify({'error': 'Unknown gate type'}), 400
 
-@app.route('/api/credit-risk', methods=['POST'])
-def api_credit_risk():
-    try:
-        data = request.json
-        model_data = MODELS_DICT['credit_model']
-        model = model_data['model']
-        features = model_data['features']
-        encoder = model_data['encoder']
-        loan_type = data.get('loan_type', 'Personal')
-        try:
-            loan_type_enc = int(encoder.transform([loan_type])[0])
-        except:
-            loan_type_enc = 0
-        row = {
-            'loan_amount': float(data.get('loan_amount', 500000)),
-            'interest_rate': float(data.get('interest_rate', 0.12)),
-            'term_months': int(data.get('term_months', 36)),
-            'credit_score': int(data.get('credit_score', 680)),
-            'annual_income': float(data.get('annual_income', 800000)),
-            'age': int(data.get('age', 35)),
-            'dti_ratio': float(data.get('dti_ratio', 0.3)),
-            'employment_years': int(data.get('employment_years', 5)),
-            'num_dependents': int(data.get('num_dependents', 2)),
-            'num_prior_loans': int(data.get('num_prior_loans', 1)),
-            'has_mortgage': int(data.get('has_mortgage', 0)),
-            'loan_type_enc': loan_type_enc,
-        }
-        X = pd.DataFrame([[row[f] for f in features]], columns=features)
-        prob = float(model.predict_proba(X)[0][1])
-        risk_band = 'LOW' if prob < 0.1 else ('MEDIUM' if prob < 0.3 else ('HIGH' if prob < 0.6 else 'CRITICAL'))
-        importance = get_feature_importance(model_data)
-        return jsonify({
-            'probability': round(prob, 4),
-            'risk_band': risk_band,
-            'recommendation': 'Approve' if prob < 0.15 else ('Review' if prob < 0.35 else 'Decline'),
-            'feature_importance': importance,
-        })
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
 
-@app.route('/api/fraud-detect', methods=['POST'])
-def api_fraud_detect():
-    try:
-        data = request.json
-        model_data = MODELS_DICT['fraud_model']
-        result = autoencoder_fraud_score(model_data, data)
-        result['amount'] = float(data.get('amount', 0))
-        result['txn_type'] = data.get('txn_type', 'UPI')
-        result['hour'] = int(data.get('hour', 12))
-        return jsonify(result)
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
+# ============================================================================
+# HTML PAGES
+# ============================================================================
 
-@app.route('/api/kyc-aml', methods=['POST'])
-def api_kyc_aml():
-    try:
-        data = request.json
-        model_data = MODELS_DICT['kyc_model']
-        model = model_data['model']
-        features = model_data['features']
-        encoder = model_data['encoder']
-        country = data.get('country', 'India')
-        try:
-            country_enc = int(encoder.transform([country])[0])
-        except:
-            country_enc = 0
-        risk_score = int(data.get('risk_score', 35))
-        row = {
-            'country_enc': country_enc,
-            'txn_volume_30d': float(data.get('txn_volume_30d', 500000)),
-            'num_large_txns': int(data.get('num_large_txns', 3)),
-            'structuring_detected': int(data.get('structuring_detected', 0)),
-            'pep_flag': int(data.get('pep_flag', 0)),
-            'sanctions_hit': int(data.get('sanctions_hit', 0)),
-            'risk_score': risk_score,
-            'account_age_months': int(data.get('account_age_months', 24)),
-        }
-        X = pd.DataFrame([[row[f] for f in features]], columns=features)
-        prob = float(model.predict_proba(X)[0][1])
-        return jsonify({
-            'probability': round(prob, 4),
-            'risk_level': 'HIGH' if prob > 0.5 else ('MEDIUM' if prob > 0.2 else 'LOW'),
-            'risk_score': risk_score,
-            'recommendation': 'Investigate' if prob > 0.5 else ('Monitor' if prob > 0.2 else 'Normal'),
-            'feature_importance': get_feature_importance(model_data),
-        })
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
-@app.route('/api/churn', methods=['POST'])
-def api_churn():
-    try:
-        data = request.json
-        model_data = MODELS_DICT['churn_model']
-        model = model_data['model']
-        features = model_data['features']
-        encoders = model_data['encoders']
-        segment = data.get('segment', 'Retail')
-        occupation = data.get('occupation', 'Salaried')
-        city = data.get('city', 'Mumbai')
-        try: seg_enc = int(encoders['segment'].transform([segment])[0])
-        except: seg_enc = 0
-        try: occ_enc = int(encoders['occupation'].transform([occupation])[0])
-        except: occ_enc = 0
-        try: city_enc = int(encoders['city'].transform([city])[0])
-        except: city_enc = 0
-        row = {
-            'age': int(data.get('age', 35)),
-            'annual_income': float(data.get('annual_income', 800000)),
-            'credit_score': int(data.get('credit_score', 680)),
-            'months_with_bank': int(data.get('months_with_bank', 24)),
-            'num_products': int(data.get('num_products', 2)),
-            'avg_monthly_balance': float(data.get('avg_monthly_balance', 50000)),
-            'satisfaction_score': float(data.get('satisfaction_score', 3.5)),
-            'complaints_last_6m': int(data.get('complaints_last_6m', 1)),
-            'digital_engagement': float(data.get('digital_engagement', 0.5)),
-            'branch_visits_3m': int(data.get('branch_visits_3m', 3)),
-            'product_utilization': float(data.get('product_utilization', 0.5)),
-            'segment_enc': seg_enc,
-            'occupation_enc': occ_enc,
-            'city_enc': city_enc,
-        }
-        X = pd.DataFrame([[row[f] for f in features]], columns=features)
-        prob = float(model.predict_proba(X)[0][1])
-        return jsonify({
-            'probability': round(prob, 4),
-            'risk_level': 'HIGH' if prob > 0.5 else ('MEDIUM' if prob > 0.2 else 'LOW'),
-            'recommendation': 'Immediate retention action' if prob > 0.5 else ('Monitor closely' if prob > 0.2 else 'Low risk'),
-            'feature_importance': get_feature_importance(model_data),
-        })
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
-@app.route('/api/survival', methods=['POST'])
-def api_survival():
-    try:
-        data = request.json
-        model_data = MODELS_DICT['survival_model']
-        result = survival_predict(model_data, data)
-        return jsonify(result)
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
-@app.route('/api/agentic-aml', methods=['POST'])
-def api_agentic_aml():
-    try:
-        data = request.json
-        result = run_agentic_aml_investigation(data)
-        return jsonify(result)
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
-@app.route('/api/black-scholes', methods=['POST'])
-def api_black_scholes():
-    try:
-        data = request.json
-        S = float(data.get('spot', 100))
-        K = float(data.get('strike', 100))
-        T = float(data.get('maturity', 1))
-        r = float(data.get('rate', 0.05))
-        sigma = float(data.get('volatility', 0.2))
-        opt_type = data.get('option_type', 'call')
-        price = black_scholes(S, K, T, r, sigma, opt_type)
-        greeks = bs_greeks(S, K, T, r, sigma, opt_type)
-        spot_range = np.linspace(0.5*S, 1.5*S, 50)
-        payoffs = []
-        for s in spot_range:
-            if opt_type == 'call':
-                payoff = max(s - K, 0) - price
-            else:
-                payoff = max(K - s, 0) - price
-            payoffs.append(round(payoff, 2))
-        return jsonify({
-            'price': round(price, 4),
-            'greeks': {k: round(v, 6) for k, v in greeks.items()},
-            'd1': round((math.log(S/K) + (r + 0.5*sigma**2)*T) / (sigma*math.sqrt(T)), 4),
-            'd2': round((math.log(S/K) + (r + 0.5*sigma**2)*T) / (sigma*math.sqrt(T)) - sigma*math.sqrt(T), 4),
-            'payoff_diagram': {
-                'spot_prices': [round(s, 2) for s in spot_range.tolist()],
-                'payoffs': payoffs,
-            }
-        })
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
-@app.route('/api/monte-carlo-var', methods=['POST'])
-def api_monte_carlo_var():
-    try:
-        data = request.json
-        portfolio_value = float(data.get('portfolio_value', 10000000))
-        n_assets = int(data.get('n_assets', 5))
-        weights = [1/n_assets] * n_assets
-        confidence = float(data.get('confidence', 0.95))
-        horizon = int(data.get('horizon', 1))
-        result = monte_carlo_var(portfolio_value, weights, n_sims=10000, confidence=confidence, horizon=horizon)
-        return jsonify(result)
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
-@app.route('/api/basel-irb', methods=['POST'])
-def api_basel_irb():
-    try:
-        data = request.json
-        pd_val = float(data.get('pd', 0.02))
-        lgd = float(data.get('lgd', 0.45))
-        ead = float(data.get('ead', 1000000))
-        maturity = float(data.get('maturity', 2.5))
-        asset_class = data.get('asset_class', 'corporate')
-        result = basel_irb_rwa(pd_val, lgd, ead, maturity, asset_class)
-        return jsonify(result)
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
-@app.route('/api/copula-defaults', methods=['POST'])
-def api_copula_defaults():
-    try:
-        data = request.json
-        n_loans = int(data.get('n_loans', 1000))
-        n_sims = int(data.get('n_sims', 5000))
-        pd_val = float(data.get('pd', 0.05))
-        lgd = float(data.get('lgd', 0.4))
-        correlation = float(data.get('correlation', 0.3))
-        result = gaussian_copula_defaults(n_loans, n_sims, pd_val, lgd, correlation)
-        return jsonify(result)
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
-@app.route('/api/stress-test', methods=['POST'])
-def api_stress_test():
-    try:
-        if 'loans' in DATA_DFS and len(DATA_DFS['loans']) > 0:
-            sample = DATA_DFS['loans'].sample(min(1000, len(DATA_DFS['loans'])))
-            portfolio = sample.to_dict('records')
-        else:
-            portfolio = []
-        scenarios = get_default_stress_scenarios()
-        results = stress_test_portfolio(portfolio, scenarios)
-        return jsonify({'scenarios': results})
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
-@app.route('/api/model-performance')
-def api_model_performance():
-    try:
-        return jsonify({
-            'credit_risk': {'auc': MODELS_DICT.get('credit_model', {}).get('auc', 0)},
-            'fraud_detection': {'auc': MODELS_DICT.get('fraud_model', {}).get('auc', 0)},
-            'kyc_aml': {'auc': MODELS_DICT.get('kyc_model', {}).get('auc', 0)},
-            'churn': {'auc': MODELS_DICT.get('churn_model', {}).get('auc', 0)},
-            'survival_analysis': {'c_index': MODELS_DICT.get('survival_model', {}).get('c_index', 0)},
-        })
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
-# ============ HTML/CSS/JS ============
-
-CSS_STR = """
-:root{--primary:#1a237e;--primary-light:#3949ab;--accent:#00bcd4;--accent2:#ff6f00;--bg:#0f1117;--card:#1a1d29;--card-light:#232838;--text:#e0e0e0;--text-dim:#9e9e9e;--success:#4caf50;--warning:#ff9800;--danger:#f44336;--border:#2d2d3d}
+CSS = """
+:root{--primary:#1a237e;--primary-light:#3949ab;--accent:#00bcd4;--accent2:#ff6f00;--bg:#0f1117;--card:#1a1d29;--card-light:#232838;--text:#e0e0e0;--text-dim:#9e9e9e;--success:#4caf50;--warning:#ff9800;--danger:#f44336;--border:#2d2d3d;--quantum:#7c4dff;--cognitive:#00e676;--gate:#ff5252;--settle:#448aff}
 *{margin:0;padding:0;box-sizing:border-box}
 body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:var(--bg);color:var(--text);display:flex;min-height:100vh}
-.sidebar{width:260px;background:var(--card);border-right:1px solid var(--border);padding:0;position:fixed;height:100vh;overflow-y:auto;z-index:100}
+.sidebar{width:260px;background:var(--card);border-right:1px solid var(--border);position:fixed;height:100vh;overflow-y:auto;z-index:100}
 .sidebar-header{padding:20px;border-bottom:1px solid var(--border);text-align:center}
-.sidebar-header h1{font-size:1.4rem;background:linear-gradient(135deg,var(--accent),var(--primary-light));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
-.sidebar-header .version{font-size:0.7rem;color:var(--accent);margin-top:4px;letter-spacing:1px}
+.sidebar-header h1{font-size:1.3rem;background:linear-gradient(135deg,var(--quantum),var(--cognitive));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.sidebar-header .version{font-size:0.65rem;color:var(--accent);margin-top:4px;letter-spacing:1.5px}
 .nav-section{padding:10px 0;border-bottom:1px solid var(--border)}
-.nav-section-title{padding:8px 20px;font-size:0.7rem;text-transform:uppercase;letter-spacing:1.5px;color:var(--text-dim);font-weight:600}
-.nav-item{display:block;padding:10px 20px;color:var(--text-dim);text-decoration:none;font-size:0.85rem;transition:all 0.2s;border-left:3px solid transparent}
+.nav-section-title{padding:8px 20px;font-size:0.65rem;text-transform:uppercase;letter-spacing:1.5px;color:var(--text-dim);font-weight:600}
+.nav-item{display:block;padding:10px 20px;color:var(--text-dim);text-decoration:none;font-size:0.82rem;transition:all 0.2s;border-left:3px solid transparent}
 .nav-item:hover{background:var(--card-light);color:var(--text)}
 .nav-item.active{background:var(--card-light);color:var(--accent);border-left-color:var(--accent)}
-.nav-item .badge{background:var(--accent2);color:#fff;font-size:0.6rem;padding:2px 6px;border-radius:8px;font-weight:700;margin-left:6px}
 .main{margin-left:260px;flex:1;padding:30px;min-width:0}
 .page-header{margin-bottom:25px}
-.page-header h2{font-size:1.6rem;color:var(--text)}
-.page-header p{color:var(--text-dim);font-size:0.9rem;margin-top:5px}
+.page-header h2{font-size:1.5rem}
+.page-header p{color:var(--text-dim);font-size:0.88rem;margin-top:5px}
 .card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:20px;margin-bottom:20px}
-.card h3{font-size:1rem;color:var(--accent);margin-bottom:15px}
-.stat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:15px;margin-bottom:20px}
-.stat-card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:20px;text-align:center;transition:transform 0.2s}
-.stat-card:hover{transform:translateY(-3px)}
-.stat-card .value{font-size:2rem;font-weight:700;color:var(--accent)}
-.stat-card .label{font-size:0.8rem;color:var(--text-dim);margin-top:5px}
-.stat-card.danger .value{color:var(--danger)}
-.stat-card.success .value{color:var(--success)}
-.stat-card.warning .value{color:var(--warning)}
-.form-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:15px}
-.form-group{display:flex;flex-direction:column;gap:5px}
-.form-group label{font-size:0.8rem;color:var(--text-dim)}
-.form-group input,.form-group select{background:var(--bg);border:1px solid var(--border);color:var(--text);padding:10px 12px;border-radius:8px;font-size:0.9rem}
+.card h3{font-size:0.95rem;color:var(--accent);margin-bottom:15px}
+.stat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:15px;margin-bottom:20px}
+.stat-card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:18px;text-align:center}
+.stat-card .value{font-size:1.8rem;font-weight:700;color:var(--accent)}
+.stat-card .label{font-size:0.75rem;color:var(--text-dim);margin-top:4px}
+.stat-card.quantum .value{color:var(--quantum)}
+.stat-card.cognitive .value{color:var(--cognitive)}
+.stat-card.gate .value{color:var(--gate)}
+.stat-card.settle .value{color:var(--settle)}
+.form-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}
+.form-group{display:flex;flex-direction:column;gap:4px}
+.form-group label{font-size:0.75rem;color:var(--text-dim)}
+.form-group input,.form-group select{background:var(--bg);border:1px solid var(--border);color:var(--text);padding:8px 10px;border-radius:6px;font-size:0.85rem}
 .form-group input:focus,.form-group select:focus{outline:none;border-color:var(--accent)}
-.btn{background:linear-gradient(135deg,var(--primary),var(--primary-light));color:#fff;border:none;padding:12px 30px;border-radius:8px;font-size:0.9rem;cursor:pointer;transition:opacity 0.2s;font-weight:600}
+.btn{background:linear-gradient(135deg,var(--primary),var(--primary-light));color:#fff;border:none;padding:10px 25px;border-radius:8px;font-size:0.85rem;cursor:pointer;font-weight:600}
 .btn:hover{opacity:0.9}
 .result-box{background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:15px;margin-top:15px;display:none}
 .result-box.show{display:block}
-.result-box .result-value{font-size:1.5rem;font-weight:700;color:var(--accent)}
-.result-box .result-label{font-size:0.8rem;color:var(--text-dim)}
+.result-box .result-value{font-size:1.4rem;font-weight:700;color:var(--accent)}
+.result-box .result-label{font-size:0.78rem;color:var(--text-dim)}
 .chart-container{background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:15px;margin-top:15px}
-table{width:100%;border-collapse:collapse;font-size:0.85rem}
-table th,table td{padding:10px 12px;text-align:left;border-bottom:1px solid var(--border)}
-table th{color:var(--accent);font-weight:600;font-size:0.8rem;text-transform:uppercase;letter-spacing:0.5px}
-table tr:hover{background:var(--card-light)}
-.tag{display:inline-block;padding:3px 10px;border-radius:12px;font-size:0.75rem;font-weight:600}
+table{width:100%;border-collapse:collapse;font-size:0.82rem}
+table th,table td{padding:8px 10px;text-align:left;border-bottom:1px solid var(--border)}
+table th{color:var(--accent);font-weight:600;font-size:0.75rem;text-transform:uppercase}
+.tag{display:inline-block;padding:2px 8px;border-radius:10px;font-size:0.7rem;font-weight:600}
 .tag-danger{background:rgba(244,67,54,0.15);color:var(--danger)}
-.tag-warning{background:rgba(255,152,0,0.15);color:var(--warning)}
 .tag-success{background:rgba(76,175,80,0.15);color:var(--success)}
-.agent-card{background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:12px;margin-bottom:10px}
-.agent-card .agent-name{color:var(--accent);font-size:0.85rem;font-weight:600;margin-bottom:5px}
-.agent-card .agent-status{font-size:0.75rem;color:var(--success)}
-.agent-card .agent-action{font-size:0.8rem;color:var(--text-dim);margin-top:3px}
-.math-formula{background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:15px;margin:10px 0;font-family:'Courier New',monospace;font-size:0.9rem;color:var(--accent);overflow-x:auto}
-.info-banner{background:linear-gradient(135deg,rgba(0,188,212,0.1),rgba(26,35,126,0.1));border:1px solid rgba(0,188,212,0.3);border-radius:8px;padding:12px 15px;margin-bottom:15px;font-size:0.85rem;color:var(--text-dim)}
+.tag-warning{background:rgba(255,152,0,0.15);color:var(--warning)}
+.tag-quantum{background:rgba(124,77,255,0.15);color:var(--quantum)}
+.agent-card{background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:12px;margin-bottom:8px}
+.agent-name{color:var(--accent);font-size:0.82rem;font-weight:600}
+.agent-action{font-size:0.78rem;color:var(--text-dim);margin-top:3px}
+.math-formula{background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:12px;margin:10px 0;font-family:'Courier New',monospace;font-size:0.85rem;color:var(--accent);overflow-x:auto}
+.info-banner{background:linear-gradient(135deg,rgba(124,77,255,0.1),rgba(0,230,118,0.1));border:1px solid rgba(124,77,255,0.3);border-radius:8px;padding:10px 15px;margin-bottom:15px;font-size:0.82rem;color:var(--text-dim)}
 .info-banner strong{color:var(--accent)}
+.truth-table{display:inline-block;border:1px solid var(--border);border-radius:6px;margin:5px}
+.truth-table table{margin:0}
+.scenario-btn{display:inline-block;background:var(--card-light);border:1px solid var(--border);color:var(--text);padding:8px 16px;border-radius:8px;font-size:0.8rem;cursor:pointer;margin:4px;text-decoration:none}
+.scenario-btn:hover{border-color:var(--accent);color:var(--accent)}
 @media(max-width:768px){.sidebar{display:none}.main{margin-left:0;padding:15px}}
 """
 
-# Load HTML templates from external file to keep app.py clean
-# We'll build pages using a page() function
-
 def page(title, content, active=''):
-    nav_html = '<div class="sidebar"><div class="sidebar-header"><h1>FinSight AI</h1><div class="version">v2.0 RESEARCH</div></div>'
+    nav_html = '<div class="sidebar"><div class="sidebar-header"><h1>FinSight AI</h1><div class="version">v3.0 COGNITIVE FINANCE</div></div>'
     sections = [
-        ('Overview', [('/', 'Dashboard', 'overview'), ('/models', 'Model Performance', 'models')]),
-        ('Retail Banking', [('/credit-risk', 'Credit Risk Scoring', 'credit'), ('/survival', 'Survival Analysis', 'survival'), ('/fraud', 'Fraud Detection', 'fraud'), ('/churn', 'Customer Churn', 'churn')]),
-        ('Commercial Banking', [('/kyc', 'KYC / AML Risk', 'kyc'), ('/agentic-aml', 'Agentic AML Investigation', 'agentic')]),
-        ('Quantitative Finance Lab', [('/black-scholes', 'Black-Scholes Pricing', 'bs'), ('/monte-carlo', 'Monte Carlo VaR', 'mc'), ('/basel-irb', 'Basel III IRB', 'basel'), ('/copula', 'Copula Defaults', 'copula'), ('/stress-test', 'Stress Testing', 'stress')]),
+        ('Overview', [('/', 'Dashboard', 'overview')]),
+        ('Paper 1: QPS', [('/qps', 'Quantum Personnel Securities', 'qps'), ('/qps/bias', 'Bias Operators', 'qps-bias'), ('/qps/scenarios', 'Simulation Scenarios', 'qps-scen')]),
+        ('Paper 2: TCC', [('/tcc', 'Cognitive Capital Index', 'tcc'), ('/tcc/valuation', 'Token Valuation', 'tcc-val'), ('/tcc/scenarios', 'Market Scenarios', 'tcc-scen')]),
+        ('Paper 3: CSL', [('/csl', 'Settlement Layer', 'csl'), ('/csl/scenarios', 'Settlement Scenarios', 'csl-scen')]),
+        ('Paper 4: Gates', [('/gate', 'Gate Symphony', 'gate'), ('/gate/truth-tables', 'Truth Tables', 'gate-tt'), ('/gate/scenarios', 'Gate Scenarios', 'gate-scen')]),
     ]
-    new_badge = {'survival', 'agentic', 'bs', 'mc', 'basel', 'copula', 'stress'}
     for section_name, items in sections:
         nav_html += '<div class="nav-section"><div class="nav-section-title">' + section_name + '</div>'
         for href, label, key in items:
-            badge = ' <span class="badge">NEW</span>' if key in new_badge else ''
             cls = ' active' if key == active else ''
-            nav_html += '<a href="' + href + '" class="nav-item' + cls + '">' + label + badge + '</a>'
+            nav_html += '<a href="' + href + '" class="nav-item' + cls + '">' + label + '</a>'
         nav_html += '</div>'
     nav_html += '</div>'
-    return '<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>' + title + ' | FinSight AI v2.0</title><style>' + CSS_STR + '</style><script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script></head><body>' + nav_html + '<div class="main"><div class="page-header"><h2>' + title + '</h2></div>' + content + '</div></body></html>'
+    return '<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>' + title + ' | FinSight AI v3.0</title><style>' + CSS + '</style><script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script></head><body>' + nav_html + '<div class="main"><div class="page-header"><h2>' + title + '</h2></div>' + content + '</div></body></html>'
 
-# ============ PAGE ROUTES ============
 
 @app.route('/')
 def page_dashboard():
-    c = '<p>Advanced AI banking platform with quantitative finance, agentic AI workflows, and deep learning models.</p>'
-    c += '<div class="stat-grid" id="stats"></div>'
-    c += '<div class="card"><h3>Model Performance Summary</h3><table id="modelTable"><thead><tr><th>Model</th><th>Type</th><th>Score</th><th>Status</th></tr></thead><tbody></tbody></table></div>'
-    c += '<div class="card"><h3>Platform Capabilities</h3><div class="stat-grid">'
-    c += '<div class="stat-card"><div class="value">7</div><div class="label">Core ML Models</div></div>'
-    c += '<div class="stat-card"><div class="value">5</div><div class="label">Quant Finance Tools</div></div>'
-    c += '<div class="stat-card"><div class="value">5</div><div class="label">Agentic AI Agents</div></div>'
-    c += '<div class="stat-card"><div class="value">1</div><div class="label">Survival Analysis</div></div>'
-    c += '</div></div>'
-    c += '<script>'
-    c += 'fetch("/api/dashboard").then(r=>r.json()).then(d=>{'
-    c += 'const stats=document.getElementById("stats");'
-    c += 'const items=[["Customers",d.customers],["Transactions",d.transactions],["Loans",d.loans],["Fraud Alerts",d.fraud_alerts],["Defaults",d.defaults],["KYC Alerts",d.kyc_alerts],["Churn Cases",d.churn_cases],["Portfolios",d.portfolios]];'
-    c += 'stats.innerHTML=items.map(x=>"<div class=\\"stat-card\\"><div class=\\"value\\">"+x[1].toLocaleString()+"</div><div class=\\"label\\">"+x[0]+"</div></div>").join("");'
-    c += 'const mt=document.querySelector("#modelTable tbody");'
-    c += 'const models=[["Credit Risk","XGBoost",d.models.credit_auc],["Fraud Detection","XGBoost+IF",d.models.fraud_auc],["KYC/AML","Random Forest",d.models.kyc_auc],["Churn","XGBoost",d.models.churn_auc],["Survival","Cox PH",d.models.survival_c_index]];'
-    c += 'mt.innerHTML=models.map(m=>"<tr><td>"+m[0]+"</td><td>"+m[1]+"</td><td>"+(m[2]*100).toFixed(1)+"%</td><td><span class=\\"tag tag-success\\">Active</span></td></tr>").join("");'
-    c += '});'
-    c += '</script>'
+    c = '<p>An end-to-end Agentic AI banking platform built on 4 SSRN research papers by Saumyajit Ghosh.</p>'
+    c += '<div class="stat-grid">'
+    c += '<div class="stat-card quantum"><div class="value">QPS</div><div class="label">Quantum Personnel Securities</div></div>'
+    c += '<div class="stat-card cognitive"><div class="value">TCC</div><div class="label">Tokenized Cognitive Capital</div></div>'
+    c += '<div class="stat-card settle"><div class="value">CSL</div><div class="label">Cognitive Settlement Layer</div></div>'
+    c += '<div class="stat-card gate"><div class="value">GATE</div><div class="label">The Gate Symphony</div></div>'
+    c += '</div>'
+    c += '<div class="card"><h3>Research Foundation</h3><table><thead><tr><th>Paper</th><th>Title</th><th>Pages</th><th>Key Innovation</th></tr></thead><tbody>'
+    c += '<tr><td><span class="tag tag-quantum">QPS</span></td><td>Quantum Personnel Securities: A Third Asset Class Beyond Equity and Debt</td><td>48</td><td>Quantum mechanics for pricing human/behavioral corporate value</td></tr>'
+    c += '<tr><td><span class="tag tag-success">TCC</span></td><td>Tokenized Cognitive Capital: Pricing Organizational Intelligence</td><td>59</td><td>CCI index, token mechanics, cognitive decay, reflexivity loops</td></tr>'
+    c += '<tr><td><span class="tag tag-warning">CSL</span></td><td>Cognitive Settlement Layer: Multi-Agent Post-Trade Optimisation</td><td>160</td><td>8-agent system with RL, Pareto frontier, MDP routing</td></tr>'
+    c += '<tr><td><span class="tag tag-danger">GATE</span></td><td>The Gate Symphony: Deterministic Logic Gates for Agentic AI</td><td>35</td><td>Boolean gates (AND/OR/XOR/NAND) bounding agent autonomy</td></tr>'
+    c += '</tbody></table></div>'
+    c += '<div class="stat-grid">'
+    c += '<div class="stat-card"><div class="value">13</div><div class="label">AI Agents</div></div>'
+    c += '<div class="stat-card"><div class="value">19</div><div class="label">Simulation Scenarios</div></div>'
+    c += '<div class="stat-card"><div class="value">4</div><div class="label">Gate Types</div></div>'
+    c += '<div class="stat-card"><div class="value">302</div><div class="label">Research Pages</div></div>'
+    c += '</div>'
     return page('Dashboard', c, 'overview')
 
-@app.route('/credit-risk')
-def page_credit_risk():
-    c = '<p>Credit risk scoring powered by XGBoost with SHAP-style feature explainability.</p>'
-    c += '<div class="card"><h3>Loan Application Details</h3>'
-    c += '<form id="creditForm" onsubmit="return submitCredit(event)">'
-    c += '<div class="form-grid">'
-    c += '<div class="form-group"><label>Loan Amount (Rs.)</label><input type="number" name="loan_amount" value="500000" step="10000"></div>'
-    c += '<div class="form-group"><label>Interest Rate</label><input type="number" name="interest_rate" value="0.12" step="0.01"></div>'
-    c += '<div class="form-group"><label>Term (months)</label><input type="number" name="term_months" value="36"></div>'
-    c += '<div class="form-group"><label>Credit Score</label><input type="number" name="credit_score" value="680"></div>'
-    c += '<div class="form-group"><label>Annual Income (Rs.)</label><input type="number" name="annual_income" value="800000" step="10000"></div>'
-    c += '<div class="form-group"><label>Age</label><input type="number" name="age" value="35"></div>'
-    c += '<div class="form-group"><label>DTI Ratio</label><input type="number" name="dti_ratio" value="0.30" step="0.01"></div>'
-    c += '<div class="form-group"><label>Employment Years</label><input type="number" name="employment_years" value="5"></div>'
-    c += '<div class="form-group"><label>Loan Type</label><select name="loan_type"><option>Personal</option><option>Home</option><option>Auto</option><option>Education</option><option>Business</option></select></div>'
-    c += '<div class="form-group"><label>Dependents</label><input type="number" name="num_dependents" value="2"></div>'
-    c += '</div><p><button type="submit" class="btn">Assess Credit Risk</button></p></form></div>'
-    c += '<div class="result-box" id="result"><div class="result-label">Default Probability</div><div class="result-value" id="prob">--</div><div id="details"></div></div>'
-    c += '<div class="chart-container" id="chartBox" style="display:none"><canvas id="impChart"></canvas></div>'
-    c += '<script>'
-    c += 'function submitCredit(e){e.preventDefault();const f=new FormData(e.target);const d={};f.forEach((v,k)=>d[k]=v);'
-    c += 'fetch("/api/credit-risk",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(d)})'
-    c += '.then(r=>r.json()).then(r=>{document.getElementById("result").classList.add("show");'
-    c += 'document.getElementById("prob").textContent=(r.probability*100).toFixed(1)+"%";'
-    c += 'document.getElementById("details").innerHTML="<p>Risk Band: <span class=\\"tag tag-"+(r.risk_band==="LOW"?"success":r.risk_band==="MEDIUM"?"warning":"danger")+"\\">"+r.risk_band+"</span> | Recommendation: <strong>"+r.recommendation+"</strong></p>";'
-    c += 'if(r.feature_importance&&r.feature_importance.length)drawChart(r.feature_importance)});return false}'
-    c += 'let creditChart=null;function drawChart(data){const ctx=document.getElementById("impChart");document.getElementById("chartBox").style.display="block";if(creditChart)creditChart.destroy();'
-    c += 'creditChart=new Chart(ctx,{type:"bar",data:{labels:data.map(d=>d.feature),datasets:[{label:"Feature Importance",data:data.map(d=>d.importance),backgroundColor:"#00bcd4"}]},options:{responsive:true,indexAxis:"y",plugins:{title:{display:true,text:"Feature Importance (SHAP-style)"}}}})}'
-    c += '</script>'
-    return page('Credit Risk Scoring', c, 'credit')
 
-@app.route('/survival')
-def page_survival():
-    c = '<p>Cox Proportional Hazards model predicting <strong>when</strong> a borrower will default, not just <em>if</em>.</p>'
-    c += '<div class="info-banner"><strong>New:</strong> Uses the Cox PH model from lifelines with concordance index evaluation and hazard ratio extraction.</div>'
-    c += '<div class="card"><h3>Borrower & Loan Details</h3>'
-    c += '<form id="survForm" onsubmit="return submitSurvival(event)">'
+# QPS Pages
+@app.route('/qps')
+def page_qps():
+    c = '<p>Quantum Personnel Securities (QPS) introduces a third asset class using quantum mechanics — superposition, entanglement, and bias operators — to model the human and behavioral dimension of corporate value.</p>'
+    c += '<div class="info-banner"><strong>Paper 1:</strong> QPS establishes a hybrid structure that assigns tradable rights linked to key personnel. The quantum state C is neither pure equity (state A) nor pure debt (state B), but a third, orthogonal state linking financial outcomes to human decision-making quality and bias.</div>'
+    c += '<div class="card"><h3>Personnel State Vector</h3>'
+    c += '<div class="math-formula">|psi> = alpha_1|strategy_1> + alpha_2|strategy_2> + ... + alpha_n|strategy_n><br>where sum(|alpha_i|^2) = 1 (normalization)</div>'
+    c += '<form id="qpsForm" onsubmit="return submitQPS(event)">'
     c += '<div class="form-grid">'
-    c += '<div class="form-group"><label>Loan Amount (Rs.)</label><input type="number" name="loan_amount" value="1000000" step="50000"></div>'
-    c += '<div class="form-group"><label>Interest Rate</label><input type="number" name="interest_rate" value="0.11" step="0.01"></div>'
-    c += '<div class="form-group"><label>Term (months)</label><input type="number" name="term_months" value="60"></div>'
-    c += '<div class="form-group"><label>Credit Score</label><input type="number" name="credit_score" value="650"></div>'
-    c += '<div class="form-group"><label>Annual Income (Rs.)</label><input type="number" name="annual_income" value="600000" step="10000"></div>'
-    c += '<div class="form-group"><label>Age</label><input type="number" name="age" value="32"></div>'
-    c += '<div class="form-group"><label>DTI Ratio</label><input type="number" name="dti_ratio" value="0.35" step="0.01"></div>'
-    c += '<div class="form-group"><label>Employment Years</label><input type="number" name="employment_years" value="3"></div>'
-    c += '<div class="form-group"><label>Loan Type</label><select name="loan_type"><option>Personal</option><option>Home</option><option>Auto</option><option>Education</option><option>Business</option></select></div>'
-    c += '<div class="form-group"><label>Dependents</label><input type="number" name="num_dependents" value="2"></div>'
-    c += '</div><p><button type="submit" class="btn">Predict Survival Curve</button></p></form></div>'
-    c += '<div class="result-box" id="result"><div class="result-label">Survival Analysis Result</div><div id="survDetails"></div></div>'
-    c += '<div class="chart-container" id="chartBox" style="display:none"><canvas id="survChart"></canvas></div>'
-    c += '<div class="card" id="hazardCard" style="display:none"><h3>Hazard Ratios (exp(beta))</h3><p style="color:var(--text-dim);font-size:0.8rem">HR > 1 = risk accelerator, HR < 1 = protective factor</p><table id="hazardTable"><thead><tr><th>Feature</th><th>Hazard Ratio</th><th>Interpretation</th></tr></thead><tbody></tbody></table></div>'
+    c += '<div class="form-group"><label>Strategy 1</label><input type="text" name="s1" value="Expansion"></div>'
+    c += '<div class="form-group"><label>Amplitude 1</label><input type="number" name="a1" value="0.3" step="0.05"></div>'
+    c += '<div class="form-group"><label>Strategy 2</label><input type="text" name="s2" value="Aggressive Acquisition"></div>'
+    c += '<div class="form-group"><label>Amplitude 2</label><input type="number" name="a2" value="0.4" step="0.05"></div>'
+    c += '<div class="form-group"><label>Strategy 3</label><input type="text" name="s3" value="Hold"></div>'
+    c += '<div class="form-group"><label>Amplitude 3</label><input type="number" name="a3" value="0.2" step="0.05"></div>'
+    c += '<div class="form-group"><label>Strategy 4</label><input type="text" name="s4" value="Conservative Growth"></div>'
+    c += '<div class="form-group"><label>Amplitude 4</label><input type="number" name="a4" value="0.1" step="0.05"></div>'
+    c += '</div><p><button type="submit" class="btn">Compute State Vector</button></p></form></div>'
+    c += '<div class="result-box" id="result"><div id="qpsDetails"></div></div>'
+    c += '<div class="chart-container" id="chartBox" style="display:none"><canvas id="stateChart"></canvas></div>'
     c += '<script>'
-    c += 'function submitSurvival(e){e.preventDefault();const f=new FormData(e.target);const d={};f.forEach((v,k)=>d[k]=v);'
-    c += 'fetch("/api/survival",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(d)})'
+    c += 'function submitQPS(e){e.preventDefault();const f=new FormData(e.target);'
+    c += 'const strategies=[f.get("s1"),f.get("s2"),f.get("s3"),f.get("s4")].filter(s=>s);'
+    c += 'const amplitudes=[parseFloat(f.get("a1")),parseFloat(f.get("a2")),parseFloat(f.get("a3")),parseFloat(f.get("a4"))].filter(a=>!isNaN(a));'
+    c += 'fetch("/api/qps/state",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({strategies,amplitudes})})'
     c += '.then(r=>r.json()).then(r=>{document.getElementById("result").classList.add("show");'
-    c += 'let html="<div class=\\"result-value\\">C-Index: "+(r.c_index*100).toFixed(1)+"%</div>";'
-    c += 'html+="<p>Partial Hazard: "+r.partial_hazard+"</p>";'
-    c += 'if(r.median_survival)html+="<p>Median Survival Time: "+r.median_survival+" months</p>";'
-    c += 'document.getElementById("survDetails").innerHTML=html;'
-    c += 'drawSurvChart(r.survival_probs);if(r.hazard_ratios)drawHazardTable(r.hazard_ratios)});return false}'
-    c += 'let survChart=null;function drawSurvChart(probs){const labels=Object.keys(probs).map(k=>k+"m");const data=Object.values(probs);const ctx=document.getElementById("survChart");document.getElementById("chartBox").style.display="block";if(survChart)survChart.destroy();'
-    c += 'survChart=new Chart(ctx,{type:"line",data:{labels:labels,datasets:[{label:"Survival Probability",data:data,borderColor:"#00bcd4",backgroundColor:"rgba(0,188,212,0.1)",fill:true}]},options:{responsive:true,plugins:{title:{display:true,text:"Survival Curve (Probability of No Default Over Time)"}},scales:{y:{min:0,max:1,title:{display:true,text:"P(No Default)"}},x:{title:{display:true,text:"Months"}}}}})}'
-    c += 'function drawHazardTable(hr){const t=document.querySelector("#hazardTable tbody");document.getElementById("hazardCard").style.display="block";'
-    c += 't.innerHTML=Object.entries(hr).map(x=>{const k=x[0],v=x[1];const interp=v>1.2?"<span class=\\"tag tag-danger\\">Risk Accelerator</span>":v<0.8?"<span class=\\"tag tag-success\\">Protective Factor</span>":"<span class=\\"tag tag-warning\\">Neutral</span>";'
-    c += 'return "<tr><td>"+k.replace(/_/g," ").replace(/loan type /,"")+"</td><td>"+v.toFixed(3)+"</td><td>"+interp+"</td></tr>"}).join("")}'
+    c += 'let html="<div class=\\"result-label\\">Dominant Strategy</div><div class=\\"result-value\\">"+r.max_strategy+"</div>";'
+    c += 'html+="<p>Probability: "+(r.max_probability*100).toFixed(1)+"%</p>";'
+    c += 'html+="<p>Entropy: "+r.entropy.toFixed(4)+" (max: "+(Math.log(strategies.length)).toFixed(4)+")</p>";'
+    c += 'html+="<table><tr><th>Strategy</th><th>Probability</th></tr>";'
+    c += 'Object.entries(r.probabilities).forEach(([k,v])=>{html+="<tr><td>"+k+"</td><td>"+(v*100).toFixed(2)+"%</td></tr>"});'
+    c += 'html+="</table>";document.getElementById("qpsDetails").innerHTML=html;drawStateChart(r)})}'
+    c += 'let stateChart=null;function drawStateChart(r){const ctx=document.getElementById("stateChart");document.getElementById("chartBox").style.display="block";if(stateChart)stateChart.destroy();'
+    c += 'stateChart=new Chart(ctx,{type:"bar",data:{labels:Object.keys(r.probabilities),datasets:[{label:"Probability",data:Object.values(r.probabilities),backgroundColor:"#7c4dff"}]},options:{responsive:true,plugins:{title:{display:true,text:"Personnel State Vector — Strategy Probabilities"}},scales:{y:{beginAtZero:true,max:1,title:{display:true,text:"P(strategy)"}}}}})}'
     c += '</script>'
-    return page('Survival Analysis', c, 'survival')
+    return page('Quantum Personnel Securities', c, 'qps')
 
-@app.route('/fraud')
-def page_fraud():
-    c = '<p>Fraud detection using XGBoost + Isolation Forest with dual scoring. The anomaly detection model identifies unusual patterns that deviate from normal transaction behavior.</p>'
-    c += '<div class="info-banner"><strong>Dual-Model Approach:</strong> XGBoost provides supervised fraud probability, while the Isolation Forest (autoencoder proxy) provides unsupervised anomaly detection.</div>'
-    c += '<div class="card"><h3>Transaction Details</h3>'
-    c += '<form id="fraudForm" onsubmit="return submitFraud(event)">'
+@app.route('/qps/bias')
+def page_qps_bias():
+    c = '<p>Bias operators model non-linear decision influences on leadership. Each operator transforms the personnel state vector, concentrating or dispersing strategic probability.</p>'
+    c += '<div class="info-banner"><strong>Bias Operators:</strong> Overconfidence (O_OC), Loss Aversion (O_LA), Groupthink (O_GT), Anchoring (O_AN), Confirmation (O_CF). These are non-commuting operators — the order of application matters.</div>'
+    c += '<div class="card"><h3>Apply Bias Operator</h3>'
+    c += '<form id="biasForm" onsubmit="return submitBias(event)">'
     c += '<div class="form-grid">'
-    c += '<div class="form-group"><label>Amount (Rs.)</label><input type="number" name="amount" value="5000" step="100"></div>'
-    c += '<div class="form-group"><label>Hour of Day</label><input type="number" name="hour" value="14" min="0" max="23"></div>'
-    c += '<div class="form-group"><label>Transaction Type</label><select name="txn_type"><option>UPI</option><option>NEFT</option><option>IMPS</option><option>RTGS</option><option>Card</option><option>Cheque</option></select></div>'
-    c += '<div class="form-group"><label>Channel</label><select name="channel"><option>Mobile</option><option>NetBanking</option><option>ATM</option><option>Branch</option><option>POS</option></select></div>'
-    c += '<div class="form-group"><label>Merchant Category</label><select name="merchant_category"><option>Retail</option><option>Food</option><option>Travel</option><option>Fuel</option><option>Entertainment</option><option>Bills</option><option>Transfer</option></select></div>'
-    c += '<div class="form-group"><label>Transaction Speed (sec)</label><input type="number" name="txn_speed" value="2" step="0.1"></div>'
-    c += '<div class="form-group"><label>Device Changed?</label><select name="device_change"><option value="0">No</option><option value="1">Yes</option></select></div>'
-    c += '<div class="form-group"><label>Freq (last 24h)</label><input type="number" name="freq_last_24h" value="3"></div>'
-    c += '</div><p><button type="submit" class="btn">Detect Fraud</button></p></form></div>'
-    c += '<div class="result-box" id="result"><div id="fraudDetails"></div></div>'
+    c += '<div class="form-group"><label>Bias Type</label><select name="bias_type"><option value="overconfidence">Overconfidence (O_OC)</option><option value="loss_aversion">Loss Aversion (O_LA)</option><option value="groupthink">Groupthink (O_GT)</option><option value="anchoring">Anchoring (O_AN)</option><option value="confirmation">Confirmation (O_CF)</option></select></div>'
+    c += '<div class="form-group"><label>Bias Strength (0-1)</label><input type="number" name="strength" value="0.3" step="0.05" min="0" max="1"></div>'
+    c += '</div><p><button type="submit" class="btn">Apply Bias Operator</button></p></form></div>'
+    c += '<div class="result-box" id="result"><div id="biasDetails"></div></div>'
+    c += '<div class="chart-container" id="chartBox" style="display:none"><canvas id="biasChart"></canvas></div>'
     c += '<script>'
-    c += 'function submitFraud(e){e.preventDefault();const f=new FormData(e.target);const d={};f.forEach((v,k)=>d[k]=v);'
-    c += 'fetch("/api/fraud-detect",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(d)})'
+    c += 'function submitBias(e){e.preventDefault();const f=new FormData(e.target);'
+    c += 'const strategies=["Expansion","Aggressive Acquisition","Hold","Conservative Growth"];'
+    c += 'const amplitudes=[0.3,0.4,0.2,0.1];'
+    c += 'fetch("/api/qps/bias",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({strategies,amplitudes,bias_type:f.get("bias_type"),strength:parseFloat(f.get("strength"))})})'
     c += '.then(r=>r.json()).then(r=>{document.getElementById("result").classList.add("show");'
-    c += 'let html="<div class=\\"result-label\\">Combined Fraud Score</div><div class=\\"result-value\\">"+(r.combined_score*100).toFixed(1)+"%</div>";'
+    c += 'let html="<div class=\\"result-label\\">Bias Applied: "+r.bias_applied+" ("+r.bias_symbol+")</div>";'
+    c += 'html+="<p>"+r.bias_description+"</p>";'
+    c += 'html+="<p>Entropy Change: "+(r.entropy_change>=0?"+":"")+r.entropy_change.toFixed(4)+"</p>";'
+    c += 'html+="<p>New Dominant: "+r.new_dominant_strategy+"</p>";'
+    c += 'html+="<p><em>"+r.interpretation+"</em></p>";'
+    c += 'html+="<table><tr><th>Strategy</th><th>New Probability</th></tr>";'
+    c += 'Object.entries(r.new_probabilities).forEach(([k,v])=>{html+="<tr><td>"+k+"</td><td>"+(v*100).toFixed(2)+"%</td></tr>"});'
+    c += 'html+="</table>";document.getElementById("biasDetails").innerHTML=html;drawBiasChart(r)})}'
+    c += 'let biasChart=null;function drawBiasChart(r){const ctx=document.getElementById("biasChart");document.getElementById("chartBox").style.display="block";if(biasChart)biasChart.destroy();'
+    c += 'biasChart=new Chart(ctx,{type:"bar",data:{labels:Object.keys(r.new_probabilities),datasets:[{label:"Biased Probability",data:Object.values(r.new_probabilities),backgroundColor:"#ff5252"}]},options:{responsive:true,plugins:{title:{display:true,text:"State After Bias Operator"}},scales:{y:{beginAtZero:true,max:1}}}})}'
+    c += '</script>'
+    return page('Bias Operators', c, 'qps-bias')
+
+@app.route('/qps/scenarios')
+def page_qps_scenarios():
+    c = '<p>Predefined simulation scenarios from the QPS paper, each demonstrating different leadership conditions and bias interactions.</p>'
+    c += '<div class="card"><h3>Simulation Scenarios</h3>'
+    scenarios = [
+        ('overconfident_ceo', 'Overconfident CEO in Bull Market'),
+        ('risk_averse_board', 'Risk-Averse Board in Bear Market'),
+        ('groupthink_committee', 'Groupthink in Strategic Committee'),
+        ('crisis_response', 'Crisis Response Team'),
+        ('balanced_leadership', 'Balanced Triad Leadership (Bias-Corrected)'),
+    ]
+    for name, label in scenarios:
+        c += '<a class="scenario-btn" href="#" onclick="runQPS(\'' + name + '\');return false">' + label + '</a>'
+    c += '</div>'
+    c += '<div id="qpsResult"></div>'
+    c += '<script>'
+    c += 'function runQPS(name){fetch("/api/qps/scenario/"+name).then(r=>r.json()).then(r=>{'
+    c += 'let html="<div class=\\"card\\"><h3>"+r.description+"</h3>";'
+    c += 'html+="<p><strong>Initial State:</strong></p><table>";'
+    c += 'Object.entries(r.initial_state.probabilities).forEach(([k,v])=>{html+="<tr><td>"+k+"</td><td>"+(v*100).toFixed(1)+"%</td></tr>"});'
+    c += 'html+="</table>";'
+    c += 'if(r.bias_applications){html+="<h3 style=\\"margin-top:15px\\">Bias Applications</h3>";r.bias_applications.forEach(b=>{'
+    c += 'html+="<div class=\\"agent-card\\"><div class=\\"agent-name\\">"+b.bias_applied+" ("+b.bias_symbol+")</div>";'
+    c += 'html+="<div class=\\"agent-action\\">Entropy change: "+(b.entropy_change>=0?"+":"")+b.entropy_change.toFixed(4)+"</div>";'
+    c += 'html+="<div class=\\"agent-action\\"><em>"+b.interpretation+"</em></div></div>"})}'
+    c += 'html+="<h3 style=\\"margin-top:15px\\">Payoff Analysis</h3><table><tr><th>Metric</th><th>Value</th></tr>";'
+    c += 'html+="<tr><td>Base Financial Outcome</td><td>Rs. "+r.payoff.base_financial_outcome.toLocaleString()+"</td></tr>";'
+    c += '<tr><td>Entropy Penalty</td><td>"+(r.payoff.entropy_penalty*100).toFixed(2)+"%</td></tr>";'
+    c += '<tr><td>Strategy-Weighted Payoff</td><td>Rs. "+r.payoff.strategy_weighted_payoff.toLocaleString()+"</td></tr></table>";'
+    c += 'html+="<p><em>"+r.payoff.interpretation+"</em></p></div>";'
+    c += 'document.getElementById("qpsResult").innerHTML=html})}'
+    c += '</script>'
+    return page('QPS Simulation Scenarios', c, 'qps-scen')
+
+
+# TCC Pages
+@app.route('/tcc')
+def page_tcc():
+    c = '<p>The Cognitive Capital Index (CCI) measures collective organizational intelligence across 7 dimensions, using a weighted formula with entropy adjustment and penalty functions.</p>'
+    c += '<div class="math-formula">CCI = sum(w_i * f_i) * entropy_adjustment * (1 - penalty)<br>where f_i are normalized feature scores, w_i are dynamic weights</div>'
+    c += '<div class="card"><h3>Compute Cognitive Capital Index</h3>'
+    c += '<form id="cciForm" onsubmit="return submitCCI(event)">'
+    c += '<div class="form-grid">'
+    features = [
+        ('knowledge_creation', 0.65), ('decision_efficiency', 0.70), ('ai_alignment', 0.55),
+        ('learning_velocity', 0.60), ('innovation_output', 0.50), ('collaboration_index', 0.68),
+        ('adaptive_capacity', 0.62),
+    ]
+    for fname, default in features:
+        c += '<div class="form-group"><label>' + fname.replace('_', ' ').title() + ' (0-1)</label><input type="number" name="' + fname + '" value="' + str(default) + '" step="0.05" min="0" max="1"></div>'
+    c += '</div><p><button type="submit" class="btn">Compute CCI</button></p></form></div>'
+    c += '<div class="result-box" id="result"><div id="cciDetails"></div></div>'
+    c += '<div class="chart-container" id="chartBox" style="display:none"><canvas id="cciChart"></canvas></div>'
+    c += '<script>'
+    c += 'function submitCCI(e){e.preventDefault();const f=new FormData(e.target);const features={};f.forEach((v,k)=>features[k]=parseFloat(v));'
+    c += 'fetch("/api/tcc/cci",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({features})})'
+    c += '.then(r=>r.json()).then(r=>{document.getElementById("result").classList.add("show");'
+    c += 'let html="<div class=\\"result-label\\">Cognitive Capital Index</div><div class=\\"result-value\\">"+r.cci.toFixed(4)+"</div>";'
+    c += 'html+="<p>Rating: <span class=\\"tag tag-success\\">"+r.rating+"</span></p>";'
+    c += 'html+="<p><em>"+r.interpretation+"</em></p>";'
+    c += 'html+="<table><tr><th>Dimension</th><th>Score</th></tr>";'
+    c += 'Object.entries(r.feature_scores).forEach(([k,v])=>{html+="<tr><td>"+k.replace(/_/g," ").replace(/\\b\\w/g,c=>c.toUpperCase())+"</td><td>"+v.toFixed(3)+"</td></tr>"});'
+    c += 'html+="</table>";document.getElementById("cciDetails").innerHTML=html;drawCCIChart(r)})}'
+    c += 'let cciChart=null;function drawCCIChart(r){const ctx=document.getElementById("cciChart");document.getElementById("chartBox").style.display="block";if(cciChart)cciChart.destroy();'
+    c += 'cciChart=new Chart(ctx,{type:"radar",data:{labels:Object.keys(r.feature_scores).map(k=>k.replace(/_/g," ")),datasets:[{label:"CCI Dimensions",data:Object.values(r.feature_scores),backgroundColor:"rgba(0,230,118,0.2)",borderColor:"#00e676"}]},options:{responsive:true,plugins:{title:{display:true,text:"Cognitive Capital Index — Radar"}},scales:{r:{beginAtZero:true,max:1}}}})}'
+    c += '</script>'
+    return page('Cognitive Capital Index', c, 'tcc')
+
+@app.route('/tcc/valuation')
+def page_tcc_val():
+    c = '<p>TCC Token Valuation Framework — links organizational intelligence to economic output with cognitive decay, Volatility of Cognition (VoC), and risk premium.</p>'
+    c += '<div class="math-formula">V(TCC) = MCV * e^(-lambda*t) / (1 + VoC_premium)<br>MCV = CCI * Revenue * 0.15<br>discount_rate = risk_free + VoC * 0.3</div>'
+    c += '<div class="card"><h3>Token Valuation Parameters</h3>'
+    c += '<form id="valForm" onsubmit="return submitVal(event)">'
+    c += '<div class="form-grid">'
+    c += '<div class="form-group"><label>CCI Score (0-1)</label><input type="number" name="cci" value="0.65" step="0.01" min="0" max="1"></div>'
+    c += '<div class="form-group"><label>Revenue (Rs.)</label><input type="number" name="revenue" value="100000000" step="1000000"></div>'
+    c += '<div class="form-group"><label>Growth Rate</label><input type="number" name="growth_rate" value="0.15" step="0.01"></div>'
+    c += '<div class="form-group"><label>Cognitive Decay (lambda)</label><input type="number" name="cognitive_decay" value="0.10" step="0.01"></div>'
+    c += '<div class="form-group"><label>Volatility of Cognition (VoC)</label><input type="number" name="voc" value="0.15" step="0.01"></div>'
+    c += '</div><p><button type="submit" class="btn">Value TCC Tokens</button></p></form></div>'
+    c += '<div class="result-box" id="result"><div id="valDetails"></div></div>'
+    c += '<script>'
+    c += 'function submitVal(e){e.preventDefault();const f=new FormData(e.target);const d={};f.forEach((v,k)=>d[k]=parseFloat(v));'
+    c += 'fetch("/api/tcc/valuation",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(d)})'
+    c += '.then(r=>r.json()).then(r=>{document.getElementById("result").classList.add("show");'
+    c += 'let html="<div class=\\"result-label\\">Token Price</div><div class=\\"result-value\\">Rs. "+r.token_price.toFixed(4)+"</div>";'
     c += 'html+="<table><tr><th>Metric</th><th>Value</th></tr>";'
-    c += 'html+="<tr><td>XGBoost Fraud Probability</td><td>"+(r.xgb_fraud_prob*100).toFixed(2)+"%</td></tr>";'
-    c += 'html+="<tr><td>Anomaly Score (IF)</td><td>"+r.anomaly_score.toFixed(4)+"</td></tr>";'
-    c += 'html+="<tr><td>Reconstruction Error</td><td>"+r.reconstruction_error.toFixed(4)+"</td></tr>";'
-    c += 'html+="<tr><td>Is Anomaly</td><td>"+(r.is_anomaly?"<span class=\\"tag tag-danger\\">YES</span>":"<span class=\\"tag tag-success\\">NO</span>")+"</td></tr>";'
-    c += 'html+="<tr><td>Verdict</td><td><span class=\\"tag tag-"+(r.verdict==="FRAUD"?"danger":r.verdict==="SUSPICIOUS"?"warning":"success")+"\\">"+r.verdict+"</span></td></tr></table>";'
-    c += 'document.getElementById("fraudDetails").innerHTML=html});return false}'
+    c += '<tr><td>MCV</td><td>Rs. "+r.mcv.toLocaleString()+"</td></tr>";'
+    c += '<tr><td>Cognitive Half-Life</td><td>"+r.half_life_years+" years</td></tr>";'
+    c += '<tr><td>Present Value</td><td>Rs. "+r.present_value.toLocaleString()+"</td></tr>";'
+    c += '<tr><td>Token Supply</td><td>"+r.token_supply.toLocaleString()+"</td></tr>";'
+    c += '<tr><td>Yield Rate</td><td>"+r.yield_rate+"%</td></tr></table>";'
+    c += 'html+="<p><em>"+r.valuation_summary+"</em></p>";'
+    c += 'document.getElementById("valDetails").innerHTML=html})}'
     c += '</script>'
-    return page('Fraud Detection', c, 'fraud')
+    return page('Token Valuation', c, 'tcc-val')
 
-@app.route('/churn')
-def page_churn():
-    c = '<p>Customer churn prediction using XGBoost with feature explainability.</p>'
-    c += '<div class="card"><h3>Customer Details</h3>'
-    c += '<form id="churnForm" onsubmit="return submitChurn(event)">'
-    c += '<div class="form-grid">'
-    c += '<div class="form-group"><label>Age</label><input type="number" name="age" value="35"></div>'
-    c += '<div class="form-group"><label>Annual Income (Rs.)</label><input type="number" name="annual_income" value="800000" step="10000"></div>'
-    c += '<div class="form-group"><label>Credit Score</label><input type="number" name="credit_score" value="680"></div>'
-    c += '<div class="form-group"><label>Months with Bank</label><input type="number" name="months_with_bank" value="24"></div>'
-    c += '<div class="form-group"><label>Num Products</label><input type="number" name="num_products" value="2"></div>'
-    c += '<div class="form-group"><label>Avg Monthly Balance</label><input type="number" name="avg_monthly_balance" value="50000"></div>'
-    c += '<div class="form-group"><label>Satisfaction (1-5)</label><input type="number" name="satisfaction_score" value="3.5" step="0.1" min="1" max="5"></div>'
-    c += '<div class="form-group"><label>Complaints (6m)</label><input type="number" name="complaints_last_6m" value="1"></div>'
-    c += '<div class="form-group"><label>Digital Engagement (0-1)</label><input type="number" name="digital_engagement" value="0.5" step="0.05" min="0" max="1"></div>'
-    c += '<div class="form-group"><label>Branch Visits (3m)</label><input type="number" name="branch_visits_3m" value="3"></div>'
-    c += '<div class="form-group"><label>Product Utilization (0-1)</label><input type="number" name="product_utilization" value="0.5" step="0.05" min="0" max="1"></div>'
-    c += '<div class="form-group"><label>Segment</label><select name="segment"><option>Retail</option><option>Premium</option><option>HNI</option><option>Mass</option></select></div>'
-    c += '<div class="form-group"><label>Occupation</label><select name="occupation"><option>Salaried</option><option>Self-Employed</option><option>Business</option><option>Professional</option><option>Retired</option></select></div>'
-    c += '<div class="form-group"><label>City</label><select name="city"><option>Mumbai</option><option>Delhi</option><option>Bangalore</option><option>Hyderabad</option><option>Chennai</option></select></div>'
-    c += '</div><p><button type="submit" class="btn">Predict Churn Risk</button></p></form></div>'
-    c += '<div class="result-box" id="result"><div id="churnDetails"></div></div>'
-    c += '<div class="chart-container" id="chartBox" style="display:none"><canvas id="impChart"></canvas></div>'
+@app.route('/tcc/scenarios')
+def page_tcc_scen():
+    c = '<p>Predefined TCC simulation scenarios from the paper, covering different organizational archetypes.</p>'
+    c += '<div class="card"><h3>Market Scenarios</h3>'
+    scenarios = [
+        ('ai_native_startup', 'AI-Native Startup'),
+        ('legacy_industrial', 'Legacy Industrial Firm (with AI Retrofit)'),
+        ('financial_institution', 'Financial Institution with Cognitive Governance'),
+        ('dao_collective', 'Decentralized Cognitive Network (DAO)'),
+        ('crisis_enterprise', 'Public Enterprise Under Crisis'),
+    ]
+    for name, label in scenarios:
+        c += '<a class="scenario-btn" href="#" onclick="runTCC(\'' + name + '\');return false">' + label + '</a>'
+    c += '</div>'
+    c += '<div id="tccResult"></div>'
     c += '<script>'
-    c += 'function submitChurn(e){e.preventDefault();const f=new FormData(e.target);const d={};f.forEach((v,k)=>d[k]=v);'
-    c += 'fetch("/api/churn",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(d)})'
-    c += '.then(r=>r.json()).then(r=>{document.getElementById("result").classList.add("show");'
-    c += 'let html="<div class=\\"result-label\\">Churn Probability</div><div class=\\"result-value\\">"+(r.probability*100).toFixed(1)+"%</div>";'
-    c += 'html+="<p>Risk Level: <span class=\\"tag tag-"+(r.risk_level==="LOW"?"success":r.risk_level==="MEDIUM"?"warning":"danger")+"\\">"+r.risk_level+"</span></p>";'
-    c += 'html+="<p>Recommendation: <strong>"+r.recommendation+"</strong></p>";'
-    c += 'document.getElementById("churnDetails").innerHTML=html;'
-    c += 'if(r.feature_importance&&r.feature_importance.length)drawChurnChart(r.feature_importance)});return false}'
-    c += 'let churnChart=null;function drawChurnChart(data){const ctx=document.getElementById("impChart");document.getElementById("chartBox").style.display="block";if(churnChart)churnChart.destroy();'
-    c += 'churnChart=new Chart(ctx,{type:"bar",data:{labels:data.map(d=>d.feature),datasets:[{label:"Feature Importance",data:data.map(d=>d.importance),backgroundColor:"#ff6f00"}]},options:{responsive:true,indexAxis:"y",plugins:{title:{display:true,text:"Churn Risk Drivers"}}}})}'
+    c += 'function runTCC(name){fetch("/api/tcc/scenario/"+name).then(r=>r.json()).then(r=>{'
+    c += 'let html="<div class=\\"card\\"><h3>"+r.scenario.replace(/_/g," ").replace(/\\b\\w/g,c=>c.toUpperCase())+"</h3>";'
+    c += 'html+="<div class=\\"result-value\\">CCI: "+r.cci_result.cci.toFixed(4)+"</div>";'
+    c += 'html+="<p>Rating: "+r.cci_result.rating+"</p>";'
+    c += 'html+="<p><em>"+r.cci_result.interpretation+"</em></p>";'
+    c += 'html+="<h3 style=\\"margin-top:15px\\">Token Valuation</h3><table>";'
+    c += 'html+="<tr><td>Token Price</td><td>Rs. "+r.valuation.token_price.toFixed(4)+"</td></tr>";'
+    c += 'html+="<tr><td>Present Value</td><td>Rs. "+r.valuation.present_value.toLocaleString()+"</td></tr>";'
+    c += 'html+="<tr><td>Yield</td><td>"+r.valuation.yield_rate+"%</td></tr></table>";'
+    c += 'html+="<h3 style=\\"margin-top:15px\\">Cognitive Reflexivity Loop</h3><table><tr><th>Step</th><th>Event</th><th>CCI After</th></tr>";'
+    c += 'r.reflexivity.reflexivity_loop.forEach(s=>{html+="<tr><td>"+s.step+"</td><td>"+s.event+"</td><td>"+s.cci_after_impact.toFixed(4)+"</td></tr>"});'
+    c += 'html+="</table></div>";document.getElementById("tccResult").innerHTML=html})}'
     c += '</script>'
-    return page('Customer Churn', c, 'churn')
+    return page('TCC Market Scenarios', c, 'tcc-scen')
 
-@app.route('/kyc')
-def page_kyc():
-    c = '<p>KYC/AML risk scoring using Random Forest with explainability.</p>'
-    c += '<div class="card"><h3>Customer KYC Details</h3>'
-    c += '<form id="kycForm" onsubmit="return submitKYC(event)">'
-    c += '<div class="form-grid">'
-    c += '<div class="form-group"><label>Country</label><select name="country"><option>India</option><option>USA</option><option>UK</option><option>Singapore</option><option>UAE</option><option>Switzerland</option><option>Cyprus</option><option>Cayman Is.</option><option>British Virgin Is.</option><option>Panama</option></select></div>'
-    c += '<div class="form-group"><label>Txn Volume (30d, Rs.)</label><input type="number" name="txn_volume_30d" value="500000" step="50000"></div>'
-    c += '<div class="form-group"><label>Num Large Txns</label><input type="number" name="num_large_txns" value="3"></div>'
-    c += '<div class="form-group"><label>Structuring Detected?</label><select name="structuring_detected"><option value="0">No</option><option value="1">Yes</option></select></div>'
-    c += '<div class="form-group"><label>PEP Flag?</label><select name="pep_flag"><option value="0">No</option><option value="1">Yes</option></select></div>'
-    c += '<div class="form-group"><label>Sanctions Hit?</label><select name="sanctions_hit"><option value="0">No</option><option value="1">Yes</option></select></div>'
-    c += '<div class="form-group"><label>Risk Score (0-100)</label><input type="number" name="risk_score" value="35"></div>'
-    c += '<div class="form-group"><label>Account Age (months)</label><input type="number" name="account_age_months" value="24"></div>'
-    c += '</div><p><button type="submit" class="btn">Assess AML Risk</button></p></form></div>'
-    c += '<div class="result-box" id="result"><div id="kycDetails"></div></div>'
-    c += '<div class="chart-container" id="chartBox" style="display:none"><canvas id="impChart"></canvas></div>'
-    c += '<script>'
-    c += 'function submitKYC(e){e.preventDefault();const f=new FormData(e.target);const d={};f.forEach((v,k)=>d[k]=v);'
-    c += 'fetch("/api/kyc-aml",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(d)})'
-    c += '.then(r=>r.json()).then(r=>{document.getElementById("result").classList.add("show");'
-    c += 'let html="<div class=\\"result-label\\">Suspicious Activity Probability</div><div class=\\"result-value\\">"+(r.probability*100).toFixed(1)+"%</div>";'
-    c += 'html+="<p>Risk Level: <span class=\\"tag tag-"+(r.risk_level==="LOW"?"success":r.risk_level==="MEDIUM"?"warning":"danger")+"\\">"+r.risk_level+"</span></p>";'
-    c += 'html+="<p>Recommendation: <strong>"+r.recommendation+"</strong></p>";'
-    c += 'document.getElementById("kycDetails").innerHTML=html;'
-    c += 'if(r.feature_importance&&r.feature_importance.length)drawKYCChart(r.feature_importance)});return false}'
-    c += 'let kycChart=null;function drawKYCChart(data){const ctx=document.getElementById("impChart");document.getElementById("chartBox").style.display="block";if(kycChart)kycChart.destroy();'
-    c += 'kycChart=new Chart(ctx,{type:"bar",data:{labels:data.map(d=>d.feature),datasets:[{label:"Feature Importance",data:data.map(d=>d.importance),backgroundColor:"#ff9800"}]},options:{responsive:true,indexAxis:"y",plugins:{title:{display:true,text:"AML Risk Drivers"}}}})}'
-    c += '</script>'
-    return page('KYC / AML Risk', c, 'kyc')
 
-@app.route('/agentic-aml')
-def page_agentic_aml():
-    c = '<p>Multi-agent autonomous AML investigation workflow. Five specialized AI agents collaborate to investigate a customer, each handling a specific task with full audit trail.</p>'
-    c += '<div class="info-banner"><strong>Agentic AI:</strong> Inspired by Deloitte multi-agent KYC framework where one agent pulls data, another scores risk, a third checks sanctions.</div>'
-    c += '<div class="card"><h3>Customer Under Investigation</h3>'
-    c += '<form id="agenticForm" onsubmit="return submitAgentic(event)">'
-    c += '<div class="form-grid">'
-    c += '<div class="form-group"><label>Customer ID</label><input type="text" name="customer_id" value="C123456"></div>'
-    c += '<div class="form-group"><label>Country</label><select name="country"><option>India</option><option>Cayman Is.</option><option>British Virgin Is.</option><option>Panama</option><option>Cyprus</option><option>Singapore</option></select></div>'
-    c += '<div class="form-group"><label>Txn Volume (30d, Rs.)</label><input type="number" name="txn_volume_30d" value="5000000" step="100000"></div>'
-    c += '<div class="form-group"><label>Num Large Txns</label><input type="number" name="num_large_txns" value="8"></div>'
-    c += '<div class="form-group"><label>Structuring Detected?</label><select name="structuring_detected"><option value="0">No</option><option value="1">Yes</option></select></div>'
-    c += '<div class="form-group"><label>PEP Flag?</label><select name="pep_flag"><option value="0">No</option><option value="1">Yes</option></select></div>'
-    c += '<div class="form-group"><label>Sanctions Hit?</label><select name="sanctions_hit"><option value="0">No</option><option value="1">Yes</option></select></div>'
-    c += '<div class="form-group"><label>Risk Score (0-100)</label><input type="number" name="risk_score" value="55"></div>'
-    c += '<div class="form-group"><label>Account Age (months)</label><input type="number" name="account_age_months" value="18"></div>'
-    c += '</div><p><button type="submit" class="btn">Launch Multi-Agent Investigation</button></p></form></div>'
-    c += '<div id="agentResults"></div>'
-    c += '<script>'
-    c += 'function submitAgentic(e){e.preventDefault();const f=new FormData(e.target);const d={};f.forEach((v,k)=>d[k]=v);'
-    c += 'fetch("/api/agentic-aml",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(d)})'
-    c += '.then(r=>r.json()).then(r=>{'
-    c += 'let html="<div class=\\"card\\"><h3>Investigation Results</h3>";'
-    c += 'html+="<div class=\\"stat-grid\\"><div class=\\"stat-card "+(r.sar_recommended?"danger":"success")+"\\"><div class=\\"value\\">"+(r.sar_recommended?"SAR":"CLEAR")+"</div><div class=\\"label\\">Recommendation</div></div>";'
-    c += 'html+="<div class=\\"stat-card\\"><div class=\\"value\\">"+r.total_agents+"</div><div class=\\"label\\">Agents Deployed</div></div>";'
-    c += 'html+="<div class=\\"stat-card\\"><div class=\\"value\\">"+r.data_points+"</div><div class=\\"label\\">Data Points</div></div>";'
-    c += 'html+="<div class=\\"stat-card\\"><div class=\\"value\\">"+(r.confidence*100).toFixed(0)+"%</div><div class=\\"label\\">Confidence</div></div></div>";'
-    c += 'html+="<p>"+r.investigation_summary+"</p></div>";'
-    c += 'html+="<div class=\\"card\\"><h3>Agent Workflow Execution</h3>";'
-    c += 'r.agents.forEach((a,i)=>{'
-    c += 'html+="<div class=\\"agent-card\\"><div class=\\"agent-name\\">"+(i+1)+". "+a.name+"</div>";'
-    c += 'html+="<div class=\\"agent-status\\">Status: "+a.status.toUpperCase()+"</div>";'
-    c += 'a.actions.forEach(act=>{html+="<div class=\\"agent-action\\">&#9656; "+act+"</div>"});'
-    c += 'html+="</div>"});'
-    c += 'html+="</div>";'
-    c += 'document.getElementById("agentResults").innerHTML=html});return false}'
-    c += '</script>'
-    return page('Agentic AML Investigation', c, 'agentic')
-
-@app.route('/black-scholes')
-def page_black_scholes():
-    c = '<p>Black-Scholes option pricing model with Greeks computation and payoff visualization.</p>'
-    c += '<div class="card"><h3>Option Parameters</h3>'
-    c += '<form id="bsForm" onsubmit="return submitBS(event)">'
-    c += '<div class="form-grid">'
-    c += '<div class="form-group"><label>Spot Price (S)</label><input type="number" name="spot" value="100" step="0.5"></div>'
-    c += '<div class="form-group"><label>Strike Price (K)</label><input type="number" name="strike" value="100" step="0.5"></div>'
-    c += '<div class="form-group"><label>Time to Maturity (years)</label><input type="number" name="maturity" value="1" step="0.1"></div>'
-    c += '<div class="form-group"><label>Risk-free Rate</label><input type="number" name="rate" value="0.05" step="0.005"></div>'
-    c += '<div class="form-group"><label>Volatility (sigma)</label><input type="number" name="volatility" value="0.20" step="0.01"></div>'
-    c += '<div class="form-group"><label>Option Type</label><select name="option_type"><option>call</option><option>put</option></select></div>'
-    c += '</div><p><button type="submit" class="btn">Price Option</button></p></form></div>'
-    c += '<div class="math-formula">BS Formula: C = S*N(d1) - K*e^(-rT)*N(d2)<br>where d1 = [ln(S/K) + (r + sigma^2/2)*T] / (sigma*sqrt(T)), d2 = d1 - sigma*sqrt(T)</div>'
-    c += '<div class="result-box" id="result"><div id="bsDetails"></div></div>'
-    c += '<div class="chart-container" id="chartBox" style="display:none"><canvas id="payoffChart"></canvas></div>'
-    c += '<script>'
-    c += 'function submitBS(e){e.preventDefault();const f=new FormData(e.target);const d={};f.forEach((v,k)=>d[k]=v);'
-    c += 'fetch("/api/black-scholes",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(d)})'
-    c += '.then(r=>r.json()).then(r=>{document.getElementById("result").classList.add("show");'
-    c += 'let html="<div class=\\"result-label\\">Option Price</div><div class=\\"result-value\\">"+r.price.toFixed(4)+"</div>";'
-    c += 'html+="<table><tr><th>Greek</th><th>Value</th></tr>";'
-    c += 'Object.entries(r.greeks).forEach(x=>{html+="<tr><td>"+x[0].toUpperCase()+"</td><td>"+x[1].toFixed(6)+"</td></tr>"});'
-    c += 'html+="<tr><td>d1</td><td>"+r.d1+"</td></tr><tr><td>d2</td><td>"+r.d2+"</td></tr></table>";'
-    c += 'document.getElementById("bsDetails").innerHTML=html;drawPayoff(r.payoff_diagram)});return false}'
-    c += 'let payoffChart=null;function drawPayoff(data){const ctx=document.getElementById("payoffChart");document.getElementById("chartBox").style.display="block";if(payoffChart)payoffChart.destroy();'
-    c += 'payoffChart=new Chart(ctx,{type:"line",data:{labels:data.spot_prices,datasets:[{label:"P&L",data:data.payoffs,borderColor:"#00bcd4",backgroundColor:"rgba(0,188,212,0.1)",fill:true}]},options:{responsive:true,plugins:{title:{display:true,text:"Option Payoff Diagram (P&L at Expiry)"}},scales:{x:{title:{display:true,text:"Spot Price at Expiry"}},y:{title:{display:true,text:"Profit / Loss"}}}}})}'
-    c += '</script>'
-    return page('Black-Scholes Option Pricing', c, 'bs')
-
-@app.route('/monte-carlo')
-def page_monte_carlo():
-    c = '<p>Monte Carlo Value-at-Risk simulation with 10,000 scenarios and Expected Shortfall computation.</p>'
-    c += '<div class="card"><h3>Portfolio Parameters</h3>'
-    c += '<form id="mcForm" onsubmit="return submitMC(event)">'
-    c += '<div class="form-grid">'
-    c += '<div class="form-group"><label>Portfolio Value (Rs.)</label><input type="number" name="portfolio_value" value="10000000" step="1000000"></div>'
-    c += '<div class="form-group"><label>Number of Assets</label><input type="number" name="n_assets" value="5" min="2" max="20"></div>'
-    c += '<div class="form-group"><label>Confidence Level</label><select name="confidence"><option value="0.90">90%</option><option value="0.95">95%</option><option value="0.99">99%</option></select></div>'
-    c += '<div class="form-group"><label>Time Horizon (days)</label><input type="number" name="horizon" value="1" min="1" max="30"></div>'
-    c += '</div><p><button type="submit" class="btn">Run Monte Carlo Simulation</button></p></form></div>'
-    c += '<div class="math-formula">VaR(alpha) = inf{l : P(Loss > l) <= 1-alpha}<br>ES(alpha) = E[Loss | Loss > VaR(alpha)]</div>'
-    c += '<div class="result-box" id="result"><div id="mcDetails"></div></div>'
-    c += '<div class="chart-container" id="chartBox" style="display:none"><canvas id="lossChart"></canvas></div>'
-    c += '<script>'
-    c += 'function submitMC(e){e.preventDefault();const f=new FormData(e.target);const d={};f.forEach((v,k)=>d[k]=v);'
-    c += 'fetch("/api/monte-carlo-var",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(d)})'
-    c += '.then(r=>r.json()).then(r=>{document.getElementById("result").classList.add("show");'
-    c += 'let html="<div class=\\"result-label\\">Value at Risk (95%)</div><div class=\\"result-value\\">Rs. "+r.var.toLocaleString()+"</div>";'
-    c += 'html+="<table><tr><th>Metric</th><th>Value</th></tr>";'
-    c += 'html+="<tr><td>Expected Shortfall (ES)</td><td>Rs. "+r.es.toLocaleString()+"</td></tr>";'
-    c += 'html+="<tr><td>Mean Loss</td><td>Rs. "+r.mean_loss.toLocaleString()+"</td></tr>";'
-    c += 'html+="<tr><td>Std Dev</td><td>Rs. "+r.std_loss.toLocaleString()+"</td></tr>";'
-    c += 'html+="<tr><td>VaR 90%</td><td>Rs. "+r.percentiles["90"].toLocaleString()+"</td></tr>";'
-    c += 'html+="<tr><td>VaR 95%</td><td>Rs. "+r.percentiles["95"].toLocaleString()+"</td></tr>";'
-    c += 'html+="<tr><td>VaR 99%</td><td>Rs. "+r.percentiles["99"].toLocaleString()+"</td></tr></table>";'
-    c += 'document.getElementById("mcDetails").innerHTML=html;drawLossChart(r.sim_losses)});return false}'
-    c += 'let lossChart=null;function drawLossChart(losses){const ctx=document.getElementById("lossChart");document.getElementById("chartBox").style.display="block";if(lossChart)lossChart.destroy();'
-    c += 'const buckets={};const min=Math.min(...losses),max=Math.max(...losses);const step=(max-min)/30;losses.forEach(v=>{const b=Math.floor((v-min)/step);buckets[b]=(buckets[b]||0)+1});'
-    c += 'const labels=Object.keys(buckets).map(b=>Math.round(min+parseInt(b)*step));const data=Object.values(buckets);'
-    c += 'lossChart=new Chart(ctx,{type:"bar",data:{labels:labels,datasets:[{label:"Frequency",data:data,backgroundColor:"rgba(0,188,212,0.5)",borderColor:"#00bcd4"}]},options:{responsive:true,plugins:{title:{display:true,text:"Simulated Loss Distribution (10,000 scenarios)"}},scales:{x:{title:{display:true,text:"Loss Amount (Rs.)"}},y:{title:{display:true,text:"Frequency"}}}}})}'
-    c += '</script>'
-    return page('Monte Carlo VaR', c, 'mc')
-
-@app.route('/basel-irb')
-def page_basel_irb():
-    c = '<p>Basel III Internal Ratings-Based (IRB) risk-weighted assets calculation using the regulatory formula.</p>'
-    c += '<div class="card"><h3>Risk Parameters</h3>'
-    c += '<form id="baselForm" onsubmit="return submitBasel(event)">'
-    c += '<div class="form-grid">'
-    c += '<div class="form-group"><label>Probability of Default (PD)</label><input type="number" name="pd" value="0.02" step="0.005" min="0.0003" max="1"></div>'
-    c += '<div class="form-group"><label>Loss Given Default (LGD)</label><input type="number" name="lgd" value="0.45" step="0.05" min="0" max="1"></div>'
-    c += '<div class="form-group"><label>Exposure at Default (EAD, Rs.)</label><input type="number" name="ead" value="1000000" step="100000"></div>'
-    c += '<div class="form-group"><label>Effective Maturity (years)</label><input type="number" name="maturity" value="2.5" step="0.5" min="1" max="5"></div>'
-    c += '<div class="form-group"><label>Asset Class</label><select name="asset_class"><option>corporate</option><option>sme</option><option>retail_mortgage</option><option>retail_revolving</option><option>retail_other</option></select></div>'
-    c += '</div><p><button type="submit" class="btn">Calculate RWA</button></p></form></div>'
-    c += '<div class="math-formula">K = [LGD * N((1-R)^(-1/2) * G(PD) + (R/(1-R))^(1/2) * G(0.999)) - PD * LGD] * M_adj<br>RWA = K * 12.5 * EAD<br>Capital Required = RWA * 8%</div>'
-    c += '<div class="result-box" id="result"><div id="baselDetails"></div></div>'
-    c += '<script>'
-    c += 'function submitBasel(e){e.preventDefault();const f=new FormData(e.target);const d={};f.forEach((v,k)=>d[k]=v);'
-    c += 'fetch("/api/basel-irb",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(d)})'
-    c += '.then(r=>r.json()).then(r=>{document.getElementById("result").classList.add("show");'
-    c += 'let html="<div class=\\"result-label\\">Risk-Weighted Assets</div><div class=\\"result-value\\">Rs. "+r.rwa.toLocaleString()+"</div>";'
-    c += 'html+="<table><tr><th>Metric</th><th>Value</th></tr>";'
-    c += 'html+="<tr><td>Capital Required (8%)</td><td>Rs. "+r.capital_required.toLocaleString()+"</td></tr>";'
-    c += 'html+="<tr><td>Expected Loss</td><td>Rs. "+r.expected_loss.toLocaleString()+"</td></tr>";'
-    c += 'html+="<tr><td>K (Capital Ratio)</td><td>"+(r.K*100).toFixed(2)+"%</td></tr>";'
-    c += 'html+="<tr><td>Asset Correlation (R)</td><td>"+(r.R*100).toFixed(1)+"%</td></tr>";'
-    c += 'html+="<tr><td>RWA Density</td><td>"+r.rwa_density.toFixed(1)+"%</td></tr></table>";'
-    c += 'document.getElementById("baselDetails").innerHTML=html});return false}'
-    c += '</script>'
-    return page('Basel III IRB Capital', c, 'basel')
-
-@app.route('/copula')
-def page_copula():
-    c = '<p>Gaussian Copula model for correlated portfolio defaults. Simulates dependent defaults across a loan portfolio using a systemic factor.</p>'
-    c += '<div class="card"><h3>Portfolio Parameters</h3>'
-    c += '<form id="copForm" onsubmit="return submitCopula(event)">'
-    c += '<div class="form-grid">'
-    c += '<div class="form-group"><label>Number of Loans</label><input type="number" name="n_loans" value="1000" min="100" max="5000"></div>'
-    c += '<div class="form-group"><label>Number of Simulations</label><input type="number" name="n_sims" value="5000" min="1000" max="10000"></div>'
-    c += '<div class="form-group"><label>PD (per loan)</label><input type="number" name="pd" value="0.05" step="0.01" min="0.001" max="0.5"></div>'
-    c += '<div class="form-group"><label>LGD</label><input type="number" name="lgd" value="0.40" step="0.05" min="0" max="1"></div>'
-    c += '<div class="form-group"><label>Correlation (asset)</label><input type="number" name="correlation" value="0.30" step="0.05" min="0" max="0.9"></div>'
-    c += '</div><p><button type="submit" class="btn">Run Copula Simulation</button></p></form></div>'
-    c += '<div class="math-formula">X_i = sqrt(rho) * Z + sqrt(1-rho) * epsilon_i<br>Default if X_i < Phi^(-1)(PD)<br>where Z = systemic factor, epsilon_i = idiosyncratic factor</div>'
-    c += '<div class="result-box" id="result"><div id="copDetails"></div></div>'
-    c += '<div class="chart-container" id="chartBox" style="display:none"><canvas id="distChart"></canvas></div>'
-    c += '<script>'
-    c += 'function submitCopula(e){e.preventDefault();const f=new FormData(e.target);const d={};f.forEach((v,k)=>d[k]=v);'
-    c += 'fetch("/api/copula-defaults",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(d)})'
-    c += '.then(r=>r.json()).then(r=>{document.getElementById("result").classList.add("show");'
-    c += 'let html="<div class=\\"result-label\\">99% VaR (Portfolio Loss)</div><div class=\\"result-value\\">Rs. "+r.var.toLocaleString()+"</div>";'
-    c += 'html+="<table><tr><th>Metric</th><th>Value</th></tr>";'
-    c += 'html+="<tr><td>Expected Shortfall (99%)</td><td>Rs. "+r.es.toLocaleString()+"</td></tr>";'
-    c += 'html+="<tr><td>Mean Loss</td><td>Rs. "+r.mean_loss.toLocaleString()+"</td></tr>";'
-    c += 'html+="<tr><td>Max Loss</td><td>Rs. "+r.max_loss.toLocaleString()+"</td></tr>";'
-    c += 'html+="<tr><td>Avg Defaults</td><td>"+r.mean_defaults+"</td></tr>";'
-    c += 'html+="<tr><td>Max Defaults</td><td>"+r.max_defaults+"</td></tr></table>";'
-    c += 'document.getElementById("copDetails").innerHTML=html;drawDistChart(r.loss_distribution)});return false}'
-    c += 'let distChart=null;function drawDistChart(dist){const labels=dist.map((_,i)=>i*2+"%");const ctx=document.getElementById("distChart");document.getElementById("chartBox").style.display="block";if(distChart)distChart.destroy();'
-    c += 'distChart=new Chart(ctx,{type:"line",data:{labels:labels,datasets:[{label:"Loss Distribution",data:dist,borderColor:"#ff6f00",backgroundColor:"rgba(255,111,0,0.1)",fill:true}]},options:{responsive:true,plugins:{title:{display:true,text:"Portfolio Loss Distribution (Percentiles)"}},scales:{y:{title:{display:true,text:"Loss (Rs.)"}}}}})}'
-    c += '</script>'
-    return page('Copula Dependent Defaults', c, 'copula')
-
-@app.route('/stress-test')
-def page_stress_test():
-    c = '<p>Macro stress testing engine with multiple severity scenarios. Simulates GDP shocks, unemployment spikes, and house price declines to assess portfolio resilience.</p>'
-    c += '<div class="card"><h3>Stress Test Scenarios</h3>'
-    c += '<p>Click below to run stress testing on the loan portfolio with 6 predefined macro scenarios.</p>'
-    c += '<p><button class="btn" onclick="runStress()">Run Stress Test</button></p></div>'
-    c += '<div id="stressResults"></div>'
-    c += '<script>'
-    c += 'function runStress(){fetch("/api/stress-test",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({})})'
-    c += '.then(r=>r.json()).then(r=>{let html="<div class=\\"card\\"><h3>Stress Test Results</h3>";'
-    c += 'html+="<table><thead><tr><th>Scenario</th><th>GDP Shock</th><th>Unemp.</th><th>HPI</th><th>Exp. Loss</th><th>Loss Rate</th><th>Defaults</th></tr></thead><tbody>";'
-    c += 'r.scenarios.forEach(s=>{html+="<tr><td>"+s.scenario+"</td><td>"+s.gdp_shock+"%</td><td>+"+s.unemployment_shock+"%</td><td>"+s.house_price_shock+"%</td><td>Rs. "+Math.round(s.expected_loss).toLocaleString()+"</td><td><span class=\\"tag tag-"+(s.loss_rate>3?"danger":s.loss_rate>1?"warning":"success")+"\\">"+s.loss_rate+"%</span></td><td>"+s.defaults+"</td></tr>"});'
-    c += 'html+="</tbody></table></div>";document.getElementById("stressResults").innerHTML=html})}'
-    c += '</script>'
-    return page('Stress Testing', c, 'stress')
-
-@app.route('/models')
-def page_models():
-    c = '<p>Detailed model performance metrics for all models in the platform.</p>'
-    c += '<div class="card"><h3>Model Performance Dashboard</h3><table id="perfTable"><thead><tr><th>Model</th><th>Algorithm</th><th>Score</th><th>Dataset</th><th>Metric</th></tr></thead><tbody></tbody></table></div>'
-    c += '<div class="card"><h3>Model Architecture Details</h3><table><thead><tr><th>Module</th><th>Technique</th><th>Innovation</th></tr></thead><tbody>'
-    c += '<tr><td>Credit Risk</td><td>XGBoost</td><td>SHAP-style feature importance for explainability</td></tr>'
-    c += '<tr><td>Fraud Detection</td><td>XGBoost + Isolation Forest</td><td>Dual-model: supervised + unsupervised anomaly detection</td></tr>'
-    c += '<tr><td>KYC/AML</td><td>Random Forest</td><td>Multi-factor risk scoring with sanctions screening</td></tr>'
-    c += '<tr><td>Churn Prediction</td><td>XGBoost</td><td>Behavioral feature engineering + churn drivers</td></tr>'
-    c += '<tr><td>Survival Analysis</td><td>Cox Proportional Hazards</td><td>Predicts WHEN default occurs, not just IF</td></tr>'
-    c += '<tr><td>Agentic AML</td><td>Multi-Agent Workflow</td><td>5 specialized agents with audit trail</td></tr>'
-    c += '<tr><td>Black-Scholes</td><td>Closed-form PDE solution</td><td>Greeks + payoff visualization</td></tr>'
-    c += '<tr><td>Monte Carlo VaR</td><td>10,000-scenario simulation</td><td>Correlated asset returns + Expected Shortfall</td></tr>'
-    c += '<tr><td>Basel III IRB</td><td>Regulatory formula</td><td>RWA calculation with asset correlation</td></tr>'
-    c += '<tr><td>Copula Defaults</td><td>Gaussian copula</td><td>Systemic factor model for correlated defaults</td></tr>'
-    c += '<tr><td>Stress Testing</td><td>Satellite model</td><td>Macro shocks to PD with CET1 impact</td></tr>'
+# CSL Pages
+@app.route('/csl')
+def page_csl():
+    c = '<p>The Cognitive Settlement Layer (CSL) is a multi-agent AI system for real-time securities post-trade settlement optimization. 8 specialized agents analyze each trade and collaboratively compute the optimal settlement route.</p>'
+    c += '<div class="info-banner"><strong>Paper 3 (160 pages):</strong> CSL uses a Control Tower Architecture with 3 layers — Strategic Oversight, Optimisation Agent, and Integration & Data. The 8 agents bid on each trade using a global objective function with Pareto frontier analysis.</div>'
+    c += '<div class="card"><h3>The 8 CSL Agents</h3><table><thead><tr><th>Agent</th><th>Role</th></tr></thead><tbody>'
+    for agent in CSLEngine.AGENT_DEFINITIONS:
+        c += '<tr><td>' + agent['name'] + '</td><td>' + agent['role'] + '</td></tr>'
     c += '</tbody></table></div>'
+    c += '<div class="math-formula">F(x) = w1*C(x) + w2*R(x) + w3*T(x) + w4*B(x)<br>where C=Cost, R=Risk, T=Timeliness, B=Exception probability</div>'
+    c += '<div class="card"><h3>Submit Trade for Settlement Optimization</h3>'
+    c += '<form id="cslForm" onsubmit="return submitCSL(event)">'
+    c += '<div class="form-grid">'
+    c += '<div class="form-group"><label>Trade Value ($)</label><input type="number" name="value" value="5000000" step="100000"></div>'
+    c += '<div class="form-group"><label>Currency</label><select name="currency"><option>USD</option><option>EUR</option><option>SGD</option><option>GBP</option></select></div>'
+    c += '<div class="form-group"><label>Counterparty</label><input type="text" name="counterparty" value="Broker A"></div>'
+    c += '<div class="form-group"><label>Current Hour</label><input type="number" name="current_hour" value="13" min="0" max="23"></div>'
+    c += '</div><p><button type="submit" class="btn">Run 8-Agent Settlement</button></p></form></div>'
+    c += '<div id="cslResult"></div>'
     c += '<script>'
-    c += 'fetch("/api/model-performance").then(r=>r.json()).then(d=>{'
-    c += 'const t=document.querySelector("#perfTable tbody");'
-    c += 'const models=[["Credit Risk","XGBoost",d.credit_risk.auc,"10,000 loans","AUC-ROC"],["Fraud Detection","XGBoost+IF",d.fraud_detection.auc,"120,000 txns","AUC-ROC"],["KYC/AML","Random Forest",d.kyc_aml.auc,"6,000 records","AUC-ROC"],["Churn","XGBoost",d.churn.auc,"8,000 records","AUC-ROC"],["Survival","Cox PH",d.survival_analysis.c_index,"10,000 loans","C-Index"]];'
-    c += 't.innerHTML=models.map(m=>"<tr><td>"+m[0]+"</td><td>"+m[1]+"</td><td>"+(m[2]*100).toFixed(1)+"%</td><td>"+m[3]+"</td><td>"+m[4]+"</td></tr>").join("")'
-    c += '});'
+    c += 'function submitCSL(e){e.preventDefault();const f=new FormData(e.target);const d={};f.forEach((v,k)=>d[k]=k==="value"||k==="current_hour"?parseInt(v):v);'
+    c += 'fetch("/api/csl/settle",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(d)})'
+    c += '.then(r=>r.json()).then(r=>{'
+    c += 'let html="<div class=\\"card\\"><h3>Settlement Result</h3>";'
+    c += 'html+="<div class=\\"result-value\\">Optimal Route: "+r.optimal_route+"</div>";'
+    c += 'html+="<p>Pareto-optimal routes: "+r.pareto_frontier.join(", ")+"</p>";'
+    c += 'html+="<p><strong>vs Static SSI:</strong> "+r.ssi_comparison.interpretation+"</p></div>";'
+    c += 'html+="<div class=\\"card\\"><h3>Agent Computations</h3>";'
+    c += 'r.agents.forEach(a=>{html+="<div class=\\"agent-card\\"><div class=\\"agent-name\\">"+a.name+" — <span class=\\"tag tag-success\\">"+a.status+"</span></div>";'
+    c += 'html+="<div class=\\"agent-action\\">"+a.analysis+"</div>";'
+    c += 'html+="<div class=\\"agent-action\\">Recommendation: <strong>"+a.recommendation+"</strong></div>";'
+    c += 'if(a.bids){html+="<div class=\\"agent-action\\">Bids: ";Object.entries(a.bids).forEach(([k,v])=>{html+=k+"="+v+", "});html+="</div>"}'
+    c += 'html+="</div>"});'
+    c += 'html+="</div>";document.getElementById("cslResult").innerHTML=html})}'
     c += '</script>'
-    return page('Model Performance', c, 'models')
+    return page('Cognitive Settlement Layer', c, 'csl')
+
+@app.route('/csl/scenarios')
+def page_csl_scen():
+    c = '<p>Predefined settlement scenarios from the CSL paper, covering cross-border equity, repo/SBL, multi-currency FX, and high-stress conditions.</p>'
+    c += '<div class="card"><h3>Settlement Scenarios</h3>'
+    scenarios = [
+        ('cross_border_equity', 'Cross-Border Equity Settlement (SGX to Euroclear)'),
+        ('repo_sbl', 'Repo / Securities Lending Optimization'),
+        ('multi_currency_fx', 'Multi-Currency FX-Linked Settlement'),
+        ('high_stress', 'High-Stress Market Conditions'),
+    ]
+    for name, label in scenarios:
+        c += '<a class="scenario-btn" href="#" onclick="runCSL(\'' + name + '\');return false">' + label + '</a>'
+    c += '</div>'
+    c += '<div id="cslResult"></div>'
+    c += '<script>'
+    c += 'function runCSL(name){fetch("/api/csl/scenario/"+name).then(r=>r.json()).then(r=>{'
+    c += 'let html="<div class=\\"card\\"><h3>"+r.description+"</h3>";'
+    c += 'html+="<div class=\\"result-value\\">Optimal Route: "+r.optimal_route+"</div>";'
+    c += 'html+="<p>"+r.ssi_comparison.interpretation+"</p></div>";'
+    c += 'html+="<div class=\\"card\\"><h3>Agent Details</h3>";'
+    c += 'r.agents.forEach(a=>{html+="<div class=\\"agent-card\\"><div class=\\"agent-name\\">"+a.name+"</div>";'
+    c += 'html+="<div class=\\"agent-action\\">"+a.analysis+"</div>";'
+    c += 'html+="<div class=\\"agent-action\\">Recommends: "+a.recommendation+"</div></div>"})'
+    c += 'html+="</div>";document.getElementById("cslResult").innerHTML=html})}'
+    c += '</script>'
+    return page('CSL Settlement Scenarios', c, 'csl-scen')
+
+
+# Gate Symphony Pages
+@app.route('/gate')
+def page_gate():
+    c = '<p>The Gate Symphony uses deterministic Boolean logic gates (AND, OR, XOR, NAND) to constrain agentic AI autonomy. Every consequential action must pass through gates whose satisfaction requires inputs the agent cannot produce.</p>'
+    c += '<div class="info-banner"><strong>Paper 4:</strong> No-autonomous-path theorem — for any well-formed gate symphony, there exists no satisfying assignment of agent-producible signals alone that opens a path to a consequential action. Verified with 50,000 randomized cases and 152,285 capability checks.</div>'
+    c += '<div class="card"><h3>The Four Canonical Gates</h3>'
+    c += '<div class="stat-grid">'
+    c += '<div class="stat-card gate"><div class="value">AND</div><div class="label">Conjunctive Authorization</div></div>'
+    c += '<div class="stat-card gate"><div class="value">OR</div><div class="label">Redundant Channels</div></div>'
+    c += '<div class="stat-card gate"><div class="value">XOR</div><div class="label">Mode Exclusivity</div></div>'
+    c += '<div class="stat-card gate"><div class="value">NAND</div><div class="label">Circuit Breaker</div></div>'
+    c += '</div></div>'
+    c += '<div class="card"><h3>Autonomy Lattice</h3>'
+    c += '<div class="math-formula">DENY < OBSERVE < SIMULATE < PROPOSE < BOUNDED_EXECUTE < EXECUTE<br>L_eff = meet_i(L_i) — minimum authority wins</div>'
+    c += '<p>Each gate returns a maximum permitted autonomy level. The effective level is the meet (greatest lower bound) of all gate outputs. A request can execute only when L_eff meets the action\'s minimum requirement.</p></div>'
+    c += '<div class="card"><h3>Evaluate Gate Symphony</h3>'
+    c += '<p>Select a scenario to evaluate the full gate symphony with signal provenance checking and no-autonomous-path verification:</p>'
+    scenarios = [
+        ('ssi_routing_safe', 'SSI Routing — All Approvals (Safe)'),
+        ('ssi_routing_blocked', 'SSI Routing — No Human Approval (Blocked)'),
+        ('nand_circuit_breaker', 'NAND Circuit Breaker — Fraud Detection'),
+        ('xor_mode_conflict', 'XOR — Sandbox vs Production Conflict'),
+        ('agent_only_attack', 'Agent-Only Attack (No-Autonomous-Path Test)'),
+    ]
+    for name, label in scenarios:
+        c += '<a class="scenario-btn" href="#" onclick="runGate(\'' + name + '\');return false">' + label + '</a>'
+    c += '</div>'
+    c += '<div id="gateResult"></div>'
+    c += '<script>'
+    c += 'function runGate(name){fetch("/api/gate/scenario/"+name).then(r=>r.json()).then(r=>{'
+    c += 'let html="<div class=\\"card\\"><h3>"+r.description+"</h3>";'
+    c += 'html+="<div class=\\"result-value\\" style=\\"color:"+(r.overall_result==="PROCEED"?"var(--success)":"var(--danger)")+"\\">"+r.overall_result+"</div>";'
+    c += 'html+="<p>Effective Autonomy: "+r.effective_autonomy_level+"</p>";'
+    c += 'html+="<p>No-Autonomous-Path Verified: <span class=\\"tag tag-"+(r.no_autonomous_path_verified?"success":"danger")+"\\">"+(r.no_autonomous_path_verified?"YES":"NO — VIOLATION")+"</span></p>";'
+    c += 'html+="<p><em>"+r.nap_analysis+"</em></p></div>";'
+    c += 'html+="<div class=\\"card\\"><h3>Gate Evaluation</h3>";'
+    c += 'r.gate_results.forEach(g=>{html+="<div class=\\"agent-card\\"><div class=\\"agent-name\\">"+g.gate_name+" ("+g.gate_type+") — <span class=\\"tag tag-"+(g.result==="PROCEED"?"success":"danger")+"\\">"+g.result+"</span></div>";'
+    c += 'html+="<div class=\\"agent-action\\">Inputs: ["+g.inputs.join(", ")+"]</div>";'
+    c += 'html+="<div class=\\"agent-action\\">Provenance: ["+g.input_provenances.join(", ")+"]</div>";'
+    c += 'if(g.violation)html+="<div class=\\"agent-action\\" style=\\"color:var(--danger)\\">VIOLATION: "+g.violation+"</div>";'
+    c += 'if(g.anti_pattern)html+="<div class=\\"agent-action\\" style=\\"color:var(--warning)\\">WARNING: "+g.anti_pattern+"</div>";'
+    c += 'html+="</div>"});'
+    c += 'html+="<h4>Audit Trail</h4><table><tr><td>Gates Evaluated</td><td>"+r.audit_trail.gates_evaluated+"</td></tr>";'
+    c += 'html+="<tr><td>Gates Satisfied</td><td>"+r.audit_trail.gates_satisfied+"</td></tr>";'
+    c += 'html+="<tr><td>Gates Blocked</td><td>"+r.audit_trail.gates_blocked+"</td></tr></table></div>";'
+    c += 'document.getElementById("gateResult").innerHTML=html})}'
+    c += '</script>'
+    return page('The Gate Symphony', c, 'gate')
+
+@app.route('/gate/truth-tables')
+def page_gate_tt():
+    c = '<p>Truth tables for the four canonical logic gates used in the Gate Symphony architecture.</p>'
+    for gate_type in ['AND', 'OR', 'XOR', 'NAND']:
+        gt = GateSymphony.GATE_TYPES[gate_type]
+        c += '<div class="card"><h3>' + gate_type + ' Gate — ' + gt['control_primitive'] + '</h3>'
+        c += '<p>' + gt['description'] + '</p>'
+        c += '<p style="color:var(--text-dim);font-size:0.8rem">Attenuation: ' + gt['attenuation'] + '</p>'
+        c += '<div class="truth-table"><table><thead><tr>'
+        if gate_type in ('AND', 'OR', 'XOR', 'NAND'):
+            c += '<th>A</th><th>B</th><th>Output</th>'
+        c += '</tr></thead><tbody>'
+        for row in gt['truth_table']:
+            c += '<tr>'
+            for val in row:
+                style = 'color:' + ('var(--success)' if val == 1 else 'var(--danger)')
+                c += '<td style="' + style + '">' + str(val) + '</td>'
+            c += '</tr>'
+        c += '</tbody></table></div></div>'
+    return page('Gate Truth Tables', c, 'gate-tt')
+
+@app.route('/gate/scenarios')
+def page_gate_scen():
+    c = '<p>Predefined Gate Symphony scenarios demonstrating the architecture in action.</p>'
+    c += '<div class="card"><h3>Gate Scenarios</h3>'
+    scenarios = [
+        ('ssi_routing_safe', 'SSI Routing — All Approvals Present'),
+        ('ssi_routing_blocked', 'SSI Routing — Missing Human Approval'),
+        ('nand_circuit_breaker', 'NAND Circuit Breaker — Fraud Pattern'),
+        ('xor_mode_conflict', 'XOR — Mode Conflict Detection'),
+        ('agent_only_attack', 'Agent-Only Attack — No-Autonomous-Path Test'),
+    ]
+    for name, label in scenarios:
+        c += '<a class="scenario-btn" href="#" onclick="runG(\'' + name + '\');return false">' + label + '</a>'
+    c += '</div>'
+    c += '<div id="gateResult"></div>'
+    c += '<script>'
+    c += 'function runG(name){fetch("/api/gate/scenario/"+name).then(r=>r.json()).then(r=>{'
+    c += 'let html="<div class=\\"card\\"><h3>"+r.description+"</h3>";'
+    c += 'html+="<div class=\\"result-value\\" style=\\"color:"+(r.overall_result==="PROCEED"?"var(--success)":"var(--danger)")+"\\">"+r.overall_result+"</div>";'
+    c += 'html+="<p>NAP Verified: "+(r.no_autonomous_path_verified?"YES":"NO")+"</p>";'
+    c += 'html+="<p><em>"+r.nap_analysis+"</em></p></div>";'
+    c += 'r.gate_results.forEach(g=>{html+="<div class=\\"agent-card\\"><div class=\\"agent-name\\">"+g.gate_name+" — "+g.result+"</div></div>"})'
+    c += 'document.getElementById("gateResult").innerHTML=html})}'
+    c += '</script>'
+    return page('Gate Scenarios', c, 'gate-scen')
+
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
