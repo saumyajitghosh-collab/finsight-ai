@@ -1415,6 +1415,7 @@ def page_dashboard():
     return page('Dashboard', c, 'overview')
 
 
+
 # QPS Pages
 @app.route('/qps')
 def page_qps():
@@ -1436,19 +1437,7 @@ def page_qps():
     c += '<div class="result-box" id="result"><div id="qpsDetails"></div></div>'
     c += '<div class="chart-container" id="chartBox" style="display:none"><canvas id="stateChart"></canvas></div>'
     c += '<script>'
-    c += 'function submitQPS(e){e.preventDefault();const f=new FormData(e.target);'
-    c += 'const strategies=[f.get("s1"),f.get("s2"),f.get("s3"),f.get("s4")].filter(s=>s);'
-    c += 'const amplitudes=[parseFloat(f.get("a1")),parseFloat(f.get("a2")),parseFloat(f.get("a3")),parseFloat(f.get("a4"))].filter(a=>!isNaN(a));'
-    c += 'fetch("/api/qps/state",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({strategies,amplitudes})})'
-    c += '.then(r=>r.json()).then(r=>{document.getElementById("result").classList.add("show");'
-    c += 'let html="<div class=\\"result-label\\">Dominant Strategy</div><div class=\\"result-value\\">"+r.max_strategy+"</div>";'
-    c += 'html+="<p>Probability: "+(r.max_probability*100).toFixed(1)+"%</p>";'
-    c += 'html+="<p>Entropy: "+r.entropy.toFixed(4)+" (max: "+(Math.log(strategies.length)).toFixed(4)+")</p>";'
-    c += 'html+="<table><tr><th>Strategy</th><th>Probability</th></tr>";'
-    c += 'Object.entries(r.probabilities).forEach(([k,v])=>{html+="<tr><td>"+k+"</td><td>"+(v*100).toFixed(2)+"%</td></tr>"});'
-    c += 'html+="</table>";document.getElementById("qpsDetails").innerHTML=html;drawStateChart(r)})}'
-    c += 'let stateChart=null;function drawStateChart(r){const ctx=document.getElementById("stateChart");document.getElementById("chartBox").style.display="block";if(stateChart)stateChart.destroy();'
-    c += 'stateChart=new Chart(ctx,{type:"bar",data:{labels:Object.keys(r.probabilities),datasets:[{label:"Probability",data:Object.values(r.probabilities),backgroundColor:"#7c4dff"}]},options:{responsive:true,plugins:{title:{display:true,text:"Personnel State Vector — Strategy Probabilities"}},scales:{y:{beginAtZero:true,max:1,title:{display:true,text:"P(strategy)"}}}}})}'
+    c += """function submitQPS(e){e.preventDefault();var f=new FormData(e.target);var strategies=[f.get('s1'),f.get('s2'),f.get('s3'),f.get('s4')].filter(function(s){return s});var amplitudes=[parseFloat(f.get('a1')),parseFloat(f.get('a2')),parseFloat(f.get('a3')),parseFloat(f.get('a4'))].filter(function(a){return!isNaN(a)});fetch('/api/qps/state',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({strategies:strategies,amplitudes:amplitudes})}).then(function(r){return r.json()}).then(function(r){document.getElementById('result').classList.add('show');var html='<div class="result-label">Dominant Strategy</div><div class="result-value">'+r.max_strategy+'</div>';html+='<p>Probability: '+(r.max_probability*100).toFixed(1)+'%</p>';html+='<p>Entropy: '+r.entropy.toFixed(4)+'</p>';html+='<table><tr><th>Strategy</th><th>Probability</th></tr>';Object.entries(r.probabilities).forEach(function(e){html+='<tr><td>'+e[0]+'</td><td>'+(e[1]*100).toFixed(2)+'%</td></tr>'});html+='</table>';document.getElementById('qpsDetails').innerHTML=html;drawStateChart(r)})}var stateChart=null;function drawStateChart(r){var ctx=document.getElementById('stateChart');document.getElementById('chartBox').style.display='block';if(stateChart)stateChart.destroy();stateChart=new Chart(ctx,{type:'bar',data:{labels:Object.keys(r.probabilities),datasets:[{label:'Probability',data:Object.values(r.probabilities),backgroundColor:'#7c4dff'}]},options:{responsive:true,plugins:{title:{display:true,text:'Strategy Probabilities'}},scales:{y:{beginAtZero:true,max:1}}}})}"""
     c += '</script>'
     return page('Quantum Personnel Securities', c, 'qps')
 
@@ -1465,21 +1454,7 @@ def page_qps_bias():
     c += '<div class="result-box" id="result"><div id="biasDetails"></div></div>'
     c += '<div class="chart-container" id="chartBox" style="display:none"><canvas id="biasChart"></canvas></div>'
     c += '<script>'
-    c += 'function submitBias(e){e.preventDefault();const f=new FormData(e.target);'
-    c += 'const strategies=["Expansion","Aggressive Acquisition","Hold","Conservative Growth"];'
-    c += 'const amplitudes=[0.3,0.4,0.2,0.1];'
-    c += 'fetch("/api/qps/bias",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({strategies,amplitudes,bias_type:f.get("bias_type"),strength:parseFloat(f.get("strength"))})})'
-    c += '.then(r=>r.json()).then(r=>{document.getElementById("result").classList.add("show");'
-    c += 'let html="<div class=\\"result-label\\">Bias Applied: "+r.bias_applied+" ("+r.bias_symbol+")</div>";'
-    c += 'html+="<p>"+r.bias_description+"</p>";'
-    c += 'html+="<p>Entropy Change: "+(r.entropy_change>=0?"+":"")+r.entropy_change.toFixed(4)+"</p>";'
-    c += 'html+="<p>New Dominant: "+r.new_dominant_strategy+"</p>";'
-    c += 'html+="<p><em>"+r.interpretation+"</em></p>";'
-    c += 'html+="<table><tr><th>Strategy</th><th>New Probability</th></tr>";'
-    c += 'Object.entries(r.new_probabilities).forEach(([k,v])=>{html+="<tr><td>"+k+"</td><td>"+(v*100).toFixed(2)+"%</td></tr>"});'
-    c += 'html+="</table>";document.getElementById("biasDetails").innerHTML=html;drawBiasChart(r)})}'
-    c += 'let biasChart=null;function drawBiasChart(r){const ctx=document.getElementById("biasChart");document.getElementById("chartBox").style.display="block";if(biasChart)biasChart.destroy();'
-    c += 'biasChart=new Chart(ctx,{type:"bar",data:{labels:Object.keys(r.new_probabilities),datasets:[{label:"Biased Probability",data:Object.values(r.new_probabilities),backgroundColor:"#ff5252"}]},options:{responsive:true,plugins:{title:{display:true,text:"State After Bias Operator"}},scales:{y:{beginAtZero:true,max:1}}}})}'
+    c += """function submitBias(e){e.preventDefault();var f=new FormData(e.target);var strategies=["Expansion","Aggressive Acquisition","Hold","Conservative Growth"];var amplitudes=[0.3,0.4,0.2,0.1];fetch('/api/qps/bias',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({strategies:strategies,amplitudes:amplitudes,bias_type:f.get('bias_type'),strength:parseFloat(f.get('strength'))})}).then(function(r){return r.json()}).then(function(r){document.getElementById('result').classList.add('show');var html='<div class="result-label">Bias Applied: '+r.bias_applied+' ('+r.bias_symbol+')</div>';html+='<p>'+r.bias_description+'</p>';html+='<p>Entropy Change: '+(r.entropy_change>=0?'+':'')+r.entropy_change.toFixed(4)+'</p>';html+='<p>New Dominant: '+r.new_dominant_strategy+'</p>';html+='<p><em>'+r.interpretation+'</em></p>';html+='<table><tr><th>Strategy</th><th>New Probability</th></tr>';Object.entries(r.new_probabilities).forEach(function(e){html+='<tr><td>'+e[0]+'</td><td>'+(e[1]*100).toFixed(2)+'%</td></tr>'});html+='</table>';document.getElementById('biasDetails').innerHTML=html;drawBiasChart(r)})}var biasChart=null;function drawBiasChart(r){var ctx=document.getElementById('biasChart');document.getElementById('chartBox').style.display='block';if(biasChart)biasChart.destroy();biasChart=new Chart(ctx,{type:'bar',data:{labels:Object.keys(r.new_probabilities),datasets:[{label:'Biased Probability',data:Object.values(r.new_probabilities),backgroundColor:'#ff5252'}]},options:{responsive:true,plugins:{title:{display:true,text:'State After Bias Operator'}},scales:{y:{beginAtZero:true,max:1}}}})}"""
     c += '</script>'
     return page('Bias Operators', c, 'qps-bias')
 
@@ -1499,21 +1474,7 @@ def page_qps_scenarios():
     c += '</div>'
     c += '<div id="qpsResult"></div>'
     c += '<script>'
-    c += 'function runQPS(name){fetch("/api/qps/scenario/"+name).then(r=>r.json()).then(r=>{'
-    c += 'let html="<div class=\\"card\\"><h3>"+r.description+"</h3>";'
-    c += 'html+="<p><strong>Initial State:</strong></p><table>";'
-    c += 'Object.entries(r.initial_state.probabilities).forEach(([k,v])=>{html+="<tr><td>"+k+"</td><td>"+(v*100).toFixed(1)+"%</td></tr>"});'
-    c += 'html+="</table>";'
-    c += 'if(r.bias_applications){html+="<h3 style=\\"margin-top:15px\\">Bias Applications</h3>";r.bias_applications.forEach(b=>{'
-    c += 'html+="<div class=\\"agent-card\\"><div class=\\"agent-name\\">"+b.bias_applied+" ("+b.bias_symbol+")</div>";'
-    c += 'html+="<div class=\\"agent-action\\">Entropy change: "+(b.entropy_change>=0?"+":"")+b.entropy_change.toFixed(4)+"</div>";'
-    c += 'html+="<div class=\\"agent-action\\"><em>"+b.interpretation+"</em></div></div>"})}'
-    c += 'html+="<h3 style=\\"margin-top:15px\\">Payoff Analysis</h3><table><tr><th>Metric</th><th>Value</th></tr>";'
-    c += 'html+="<tr><td>Base Financial Outcome</td><td>Rs. "+r.payoff.base_financial_outcome.toLocaleString()+"</td></tr>";'
-    c += '<tr><td>Entropy Penalty</td><td>"+(r.payoff.entropy_penalty*100).toFixed(2)+"%</td></tr>";'
-    c += '<tr><td>Strategy-Weighted Payoff</td><td>Rs. "+r.payoff.strategy_weighted_payoff.toLocaleString()+"</td></tr></table>";'
-    c += 'html+="<p><em>"+r.payoff.interpretation+"</em></p></div>";'
-    c += 'document.getElementById("qpsResult").innerHTML=html})}'
+    c += """function runQPS(name){fetch('/api/qps/scenario/'+name).then(function(r){return r.json()}).then(function(r){var html='<div class="card"><h3>'+r.description+'</h3>';html+='<p><strong>Initial State:</strong></p><table>';Object.entries(r.initial_state.probabilities).forEach(function(e){html+='<tr><td>'+e[0]+'</td><td>'+(e[1]*100).toFixed(1)+'%</td></tr>'});html+='</table>';if(r.bias_applications){html+='<h3 style="margin-top:15px">Bias Applications</h3>';r.bias_applications.forEach(function(b){html+='<div class="agent-card"><div class="agent-name">'+b.bias_applied+' ('+b.bias_symbol+')</div>';html+='<div class="agent-action">Entropy change: '+(b.entropy_change>=0?'+':'')+b.entropy_change.toFixed(4)+'</div>';html+='<div class="agent-action"><em>'+b.interpretation+'</em></div></div>'})}html+='<h3 style="margin-top:15px">Payoff Analysis</h3><table><tr><th>Metric</th><th>Value</th></tr>';html+='<tr><td>Base Financial Outcome</td><td>Rs. '+r.payoff.base_financial_outcome.toLocaleString()+'</td></tr>';html+='<tr><td>Entropy Penalty</td><td>'+(r.payoff.entropy_penalty*100).toFixed(2)+'%</td></tr>';html+='<tr><td>Strategy-Weighted Payoff</td><td>Rs. '+r.payoff.strategy_weighted_payoff.toLocaleString()+'</td></tr></table>';html+='<p><em>'+r.payoff.interpretation+'</em></p></div>';document.getElementById('qpsResult').innerHTML=html})}"""
     c += '</script>'
     return page('QPS Simulation Scenarios', c, 'qps-scen')
 
@@ -1537,17 +1498,7 @@ def page_tcc():
     c += '<div class="result-box" id="result"><div id="cciDetails"></div></div>'
     c += '<div class="chart-container" id="chartBox" style="display:none"><canvas id="cciChart"></canvas></div>'
     c += '<script>'
-    c += 'function submitCCI(e){e.preventDefault();const f=new FormData(e.target);const features={};f.forEach((v,k)=>features[k]=parseFloat(v));'
-    c += 'fetch("/api/tcc/cci",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({features})})'
-    c += '.then(r=>r.json()).then(r=>{document.getElementById("result").classList.add("show");'
-    c += 'let html="<div class=\\"result-label\\">Cognitive Capital Index</div><div class=\\"result-value\\">"+r.cci.toFixed(4)+"</div>";'
-    c += 'html+="<p>Rating: <span class=\\"tag tag-success\\">"+r.rating+"</span></p>";'
-    c += 'html+="<p><em>"+r.interpretation+"</em></p>";'
-    c += 'html+="<table><tr><th>Dimension</th><th>Score</th></tr>";'
-    c += 'Object.entries(r.feature_scores).forEach(([k,v])=>{html+="<tr><td>"+k.replace(/_/g," ").replace(/\\b\\w/g,c=>c.toUpperCase())+"</td><td>"+v.toFixed(3)+"</td></tr>"});'
-    c += 'html+="</table>";document.getElementById("cciDetails").innerHTML=html;drawCCIChart(r)})}'
-    c += 'let cciChart=null;function drawCCIChart(r){const ctx=document.getElementById("cciChart");document.getElementById("chartBox").style.display="block";if(cciChart)cciChart.destroy();'
-    c += 'cciChart=new Chart(ctx,{type:"radar",data:{labels:Object.keys(r.feature_scores).map(k=>k.replace(/_/g," ")),datasets:[{label:"CCI Dimensions",data:Object.values(r.feature_scores),backgroundColor:"rgba(0,230,118,0.2)",borderColor:"#00e676"}]},options:{responsive:true,plugins:{title:{display:true,text:"Cognitive Capital Index — Radar"}},scales:{r:{beginAtZero:true,max:1}}}})}'
+    c += """function submitCCI(e){e.preventDefault();var f=new FormData(e.target);var features={};f.forEach(function(v,k){features[k]=parseFloat(v)});fetch('/api/tcc/cci',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({features:features})}).then(function(r){return r.json()}).then(function(r){document.getElementById('result').classList.add('show');var html='<div class="result-label">Cognitive Capital Index</div><div class="result-value">'+r.cci.toFixed(4)+'</div>';html+='<p>Rating: '+r.rating+'</p>';html+='<p><em>'+r.interpretation+'</em></p>';html+='<table><tr><th>Dimension</th><th>Score</th></tr>';Object.entries(r.feature_scores).forEach(function(e){html+='<tr><td>'+e[0].replace(/_/g,' ')+'</td><td>'+e[1].toFixed(3)+'</td></tr>'});html+='</table>';document.getElementById('cciDetails').innerHTML=html;drawCCIChart(r)})}var cciChart=null;function drawCCIChart(r){var ctx=document.getElementById('cciChart');document.getElementById('chartBox').style.display='block';if(cciChart)cciChart.destroy();var labels=Object.keys(r.feature_scores).map(function(k){return k.replace(/_/g,' ')});cciChart=new Chart(ctx,{type:'radar',data:{labels:labels,datasets:[{label:'CCI Dimensions',data:Object.values(r.feature_scores),backgroundColor:'rgba(0,230,118,0.2)',borderColor:'#00e676'}]},options:{responsive:true,plugins:{title:{display:true,text:'Cognitive Capital Index'}},scales:{r:{beginAtZero:true,max:1}}}})}"""
     c += '</script>'
     return page('Cognitive Capital Index', c, 'tcc')
 
@@ -1566,18 +1517,7 @@ def page_tcc_val():
     c += '</div><p><button type="submit" class="btn">Value TCC Tokens</button></p></form></div>'
     c += '<div class="result-box" id="result"><div id="valDetails"></div></div>'
     c += '<script>'
-    c += 'function submitVal(e){e.preventDefault();const f=new FormData(e.target);const d={};f.forEach((v,k)=>d[k]=parseFloat(v));'
-    c += 'fetch("/api/tcc/valuation",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(d)})'
-    c += '.then(r=>r.json()).then(r=>{document.getElementById("result").classList.add("show");'
-    c += 'let html="<div class=\\"result-label\\">Token Price</div><div class=\\"result-value\\">Rs. "+r.token_price.toFixed(4)+"</div>";'
-    c += 'html+="<table><tr><th>Metric</th><th>Value</th></tr>";'
-    c += '<tr><td>MCV</td><td>Rs. "+r.mcv.toLocaleString()+"</td></tr>";'
-    c += '<tr><td>Cognitive Half-Life</td><td>"+r.half_life_years+" years</td></tr>";'
-    c += '<tr><td>Present Value</td><td>Rs. "+r.present_value.toLocaleString()+"</td></tr>";'
-    c += '<tr><td>Token Supply</td><td>"+r.token_supply.toLocaleString()+"</td></tr>";'
-    c += '<tr><td>Yield Rate</td><td>"+r.yield_rate+"%</td></tr></table>";'
-    c += 'html+="<p><em>"+r.valuation_summary+"</em></p>";'
-    c += 'document.getElementById("valDetails").innerHTML=html})}'
+    c += """function submitVal(e){e.preventDefault();var f=new FormData(e.target);var d={};f.forEach(function(v,k){d[k]=parseFloat(v)});fetch('/api/tcc/valuation',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(d)}).then(function(r){return r.json()}).then(function(r){document.getElementById('result').classList.add('show');var html='<div class="result-label">Token Price</div><div class="result-value">Rs. '+r.token_price.toFixed(4)+'</div>';html+='<table><tr><th>Metric</th><th>Value</th></tr>';html+='<tr><td>MCV</td><td>Rs. '+r.mcv.toLocaleString()+'</td></tr>';html+='<tr><td>Cognitive Half-Life</td><td>'+r.half_life_years+' years</td></tr>';html+='<tr><td>Present Value</td><td>Rs. '+r.present_value.toLocaleString()+'</td></tr>';html+='<tr><td>Token Supply</td><td>'+r.token_supply.toLocaleString()+'</td></tr>';html+='<tr><td>Yield Rate</td><td>'+r.yield_rate+'%</td></tr></table>';html+='<p><em>'+r.valuation_summary+'</em></p>';document.getElementById('valDetails').innerHTML=html})}"""
     c += '</script>'
     return page('Token Valuation', c, 'tcc-val')
 
@@ -1597,18 +1537,7 @@ def page_tcc_scen():
     c += '</div>'
     c += '<div id="tccResult"></div>'
     c += '<script>'
-    c += 'function runTCC(name){fetch("/api/tcc/scenario/"+name).then(r=>r.json()).then(r=>{'
-    c += 'let html="<div class=\\"card\\"><h3>"+r.scenario.replace(/_/g," ").replace(/\\b\\w/g,c=>c.toUpperCase())+"</h3>";'
-    c += 'html+="<div class=\\"result-value\\">CCI: "+r.cci_result.cci.toFixed(4)+"</div>";'
-    c += 'html+="<p>Rating: "+r.cci_result.rating+"</p>";'
-    c += 'html+="<p><em>"+r.cci_result.interpretation+"</em></p>";'
-    c += 'html+="<h3 style=\\"margin-top:15px\\">Token Valuation</h3><table>";'
-    c += 'html+="<tr><td>Token Price</td><td>Rs. "+r.valuation.token_price.toFixed(4)+"</td></tr>";'
-    c += 'html+="<tr><td>Present Value</td><td>Rs. "+r.valuation.present_value.toLocaleString()+"</td></tr>";'
-    c += 'html+="<tr><td>Yield</td><td>"+r.valuation.yield_rate+"%</td></tr></table>";'
-    c += 'html+="<h3 style=\\"margin-top:15px\\">Cognitive Reflexivity Loop</h3><table><tr><th>Step</th><th>Event</th><th>CCI After</th></tr>";'
-    c += 'r.reflexivity.reflexivity_loop.forEach(s=>{html+="<tr><td>"+s.step+"</td><td>"+s.event+"</td><td>"+s.cci_after_impact.toFixed(4)+"</td></tr>"});'
-    c += 'html+="</table></div>";document.getElementById("tccResult").innerHTML=html})}'
+    c += """function runTCC(name){fetch('/api/tcc/scenario/'+name).then(function(r){return r.json()}).then(function(r){var html='<div class="card"><h3>'+r.scenario.replace(/_/g,' ')+'</h3>';html+='<div class="result-value">CCI: '+r.cci_result.cci.toFixed(4)+'</div>';html+='<p>Rating: '+r.cci_result.rating+'</p>';html+='<p><em>'+r.cci_result.interpretation+'</em></p>';html+='<h3 style="margin-top:15px">Token Valuation</h3><table>';html+='<tr><td>Token Price</td><td>Rs. '+r.valuation.token_price.toFixed(4)+'</td></tr>';html+='<tr><td>Present Value</td><td>Rs. '+r.valuation.present_value.toLocaleString()+'</td></tr>';html+='<tr><td>Yield</td><td>'+r.valuation.yield_rate+'%</td></tr></table>';html+='<h3 style="margin-top:15px">Cognitive Reflexivity Loop</h3><table><tr><th>Step</th><th>Event</th><th>CCI After</th></tr>';r.reflexivity.reflexivity_loop.forEach(function(s){html+='<tr><td>'+s.step+'</td><td>'+s.event+'</td><td>'+s.cci_after_impact.toFixed(4)+'</td></tr>'});html+='</table></div>';document.getElementById('tccResult').innerHTML=html})}"""
     c += '</script>'
     return page('TCC Market Scenarios', c, 'tcc-scen')
 
@@ -1617,7 +1546,7 @@ def page_tcc_scen():
 @app.route('/csl')
 def page_csl():
     c = '<p>The Cognitive Settlement Layer (CSL) is a multi-agent AI system for real-time securities post-trade settlement optimization. 8 specialized agents analyze each trade and collaboratively compute the optimal settlement route.</p>'
-    c += '<div class="info-banner"><strong>Paper 3 (160 pages):</strong> CSL uses a Control Tower Architecture with 3 layers — Strategic Oversight, Optimisation Agent, and Integration & Data. The 8 agents bid on each trade using a global objective function with Pareto frontier analysis.</div>'
+    c += '<div class="info-banner"><strong>Paper 3 (160 pages):</strong> CSL uses a Control Tower Architecture with 3 layers. The 8 agents bid on each trade using a global objective function with Pareto frontier analysis.</div>'
     c += '<div class="card"><h3>The 8 CSL Agents</h3><table><thead><tr><th>Agent</th><th>Role</th></tr></thead><tbody>'
     for agent in CSLEngine.AGENT_DEFINITIONS:
         c += '<tr><td>' + agent['name'] + '</td><td>' + agent['role'] + '</td></tr>'
@@ -1633,20 +1562,7 @@ def page_csl():
     c += '</div><p><button type="submit" class="btn">Run 8-Agent Settlement</button></p></form></div>'
     c += '<div id="cslResult"></div>'
     c += '<script>'
-    c += 'function submitCSL(e){e.preventDefault();const f=new FormData(e.target);const d={};f.forEach((v,k)=>d[k]=k==="value"||k==="current_hour"?parseInt(v):v);'
-    c += 'fetch("/api/csl/settle",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(d)})'
-    c += '.then(r=>r.json()).then(r=>{'
-    c += 'let html="<div class=\\"card\\"><h3>Settlement Result</h3>";'
-    c += 'html+="<div class=\\"result-value\\">Optimal Route: "+r.optimal_route+"</div>";'
-    c += 'html+="<p>Pareto-optimal routes: "+r.pareto_frontier.join(", ")+"</p>";'
-    c += 'html+="<p><strong>vs Static SSI:</strong> "+r.ssi_comparison.interpretation+"</p></div>";'
-    c += 'html+="<div class=\\"card\\"><h3>Agent Computations</h3>";'
-    c += 'r.agents.forEach(a=>{html+="<div class=\\"agent-card\\"><div class=\\"agent-name\\">"+a.name+" — <span class=\\"tag tag-success\\">"+a.status+"</span></div>";'
-    c += 'html+="<div class=\\"agent-action\\">"+a.analysis+"</div>";'
-    c += 'html+="<div class=\\"agent-action\\">Recommendation: <strong>"+a.recommendation+"</strong></div>";'
-    c += 'if(a.bids){html+="<div class=\\"agent-action\\">Bids: ";Object.entries(a.bids).forEach(([k,v])=>{html+=k+"="+v+", "});html+="</div>"}'
-    c += 'html+="</div>"});'
-    c += 'html+="</div>";document.getElementById("cslResult").innerHTML=html})}'
+    c += """function submitCSL(e){e.preventDefault();var f=new FormData(e.target);var d={};f.forEach(function(v,k){d[k]=(k==='value'||k==='current_hour')?parseInt(v):v});fetch('/api/csl/settle',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(d)}).then(function(r){return r.json()}).then(function(r){var html='<div class="card"><h3>Settlement Result</h3>';html+='<div class="result-value">Optimal Route: '+r.optimal_route+'</div>';html+='<p>Pareto-optimal routes: '+r.pareto_frontier.join(', ')+'</p>';html+='<p><strong>vs Static SSI:</strong> '+r.ssi_comparison.interpretation+'</p></div>';html+='<div class="card"><h3>Agent Computations</h3>';r.agents.forEach(function(a){html+='<div class="agent-card"><div class="agent-name">'+a.name+' — '+a.status+'</div>';html+='<div class="agent-action">'+a.analysis+'</div>';html+='<div class="agent-action">Recommendation: '+a.recommendation+'</div>';if(a.bids){var bids='';Object.entries(a.bids).forEach(function(e){bids+=e[0]+'='+e[1]+', '});html+='<div class="agent-action">Bids: '+bids+'</div>'}html+='</div>'});html+='</div>';document.getElementById('cslResult').innerHTML=html})}"""
     c += '</script>'
     return page('Cognitive Settlement Layer', c, 'csl')
 
@@ -1665,15 +1581,7 @@ def page_csl_scen():
     c += '</div>'
     c += '<div id="cslResult"></div>'
     c += '<script>'
-    c += 'function runCSL(name){fetch("/api/csl/scenario/"+name).then(r=>r.json()).then(r=>{'
-    c += 'let html="<div class=\\"card\\"><h3>"+r.description+"</h3>";'
-    c += 'html+="<div class=\\"result-value\\">Optimal Route: "+r.optimal_route+"</div>";'
-    c += 'html+="<p>"+r.ssi_comparison.interpretation+"</p></div>";'
-    c += 'html+="<div class=\\"card\\"><h3>Agent Details</h3>";'
-    c += 'r.agents.forEach(a=>{html+="<div class=\\"agent-card\\"><div class=\\"agent-name\\">"+a.name+"</div>";'
-    c += 'html+="<div class=\\"agent-action\\">"+a.analysis+"</div>";'
-    c += 'html+="<div class=\\"agent-action\\">Recommends: "+a.recommendation+"</div></div>"})'
-    c += 'html+="</div>";document.getElementById("cslResult").innerHTML=html})}'
+    c += """function runCSL(name){fetch('/api/csl/scenario/'+name).then(function(r){return r.json()}).then(function(r){var html='<div class="card"><h3>'+r.description+'</h3>';html+='<div class="result-value">Optimal Route: '+r.optimal_route+'</div>';html+='<p>'+r.ssi_comparison.interpretation+'</p></div>';html+='<div class="card"><h3>Agent Details</h3>';r.agents.forEach(function(a){html+='<div class="agent-card"><div class="agent-name">'+a.name+'</div>';html+='<div class="agent-action">'+a.analysis+'</div>';html+='<div class="agent-action">Recommends: '+a.recommendation+'</div></div>'});html+='</div>';document.getElementById('cslResult').innerHTML=html})}"""
     c += '</script>'
     return page('CSL Settlement Scenarios', c, 'csl-scen')
 
@@ -1692,7 +1600,7 @@ def page_gate():
     c += '</div></div>'
     c += '<div class="card"><h3>Autonomy Lattice</h3>'
     c += '<div class="math-formula">DENY < OBSERVE < SIMULATE < PROPOSE < BOUNDED_EXECUTE < EXECUTE<br>L_eff = meet_i(L_i) — minimum authority wins</div>'
-    c += '<p>Each gate returns a maximum permitted autonomy level. The effective level is the meet (greatest lower bound) of all gate outputs. A request can execute only when L_eff meets the action\'s minimum requirement.</p></div>'
+    c += '<p>Each gate returns a maximum permitted autonomy level. The effective level is the meet (greatest lower bound) of all gate outputs.</p></div>'
     c += '<div class="card"><h3>Evaluate Gate Symphony</h3>'
     c += '<p>Select a scenario to evaluate the full gate symphony with signal provenance checking and no-autonomous-path verification:</p>'
     scenarios = [
@@ -1707,23 +1615,7 @@ def page_gate():
     c += '</div>'
     c += '<div id="gateResult"></div>'
     c += '<script>'
-    c += 'function runGate(name){fetch("/api/gate/scenario/"+name).then(r=>r.json()).then(r=>{'
-    c += 'let html="<div class=\\"card\\"><h3>"+r.description+"</h3>";'
-    c += 'html+="<div class=\\"result-value\\" style=\\"color:"+(r.overall_result==="PROCEED"?"var(--success)":"var(--danger)")+"\\">"+r.overall_result+"</div>";'
-    c += 'html+="<p>Effective Autonomy: "+r.effective_autonomy_level+"</p>";'
-    c += 'html+="<p>No-Autonomous-Path Verified: <span class=\\"tag tag-"+(r.no_autonomous_path_verified?"success":"danger")+"\\">"+(r.no_autonomous_path_verified?"YES":"NO — VIOLATION")+"</span></p>";'
-    c += 'html+="<p><em>"+r.nap_analysis+"</em></p></div>";'
-    c += 'html+="<div class=\\"card\\"><h3>Gate Evaluation</h3>";'
-    c += 'r.gate_results.forEach(g=>{html+="<div class=\\"agent-card\\"><div class=\\"agent-name\\">"+g.gate_name+" ("+g.gate_type+") — <span class=\\"tag tag-"+(g.result==="PROCEED"?"success":"danger")+"\\">"+g.result+"</span></div>";'
-    c += 'html+="<div class=\\"agent-action\\">Inputs: ["+g.inputs.join(", ")+"]</div>";'
-    c += 'html+="<div class=\\"agent-action\\">Provenance: ["+g.input_provenances.join(", ")+"]</div>";'
-    c += 'if(g.violation)html+="<div class=\\"agent-action\\" style=\\"color:var(--danger)\\">VIOLATION: "+g.violation+"</div>";'
-    c += 'if(g.anti_pattern)html+="<div class=\\"agent-action\\" style=\\"color:var(--warning)\\">WARNING: "+g.anti_pattern+"</div>";'
-    c += 'html+="</div>"});'
-    c += 'html+="<h4>Audit Trail</h4><table><tr><td>Gates Evaluated</td><td>"+r.audit_trail.gates_evaluated+"</td></tr>";'
-    c += 'html+="<tr><td>Gates Satisfied</td><td>"+r.audit_trail.gates_satisfied+"</td></tr>";'
-    c += 'html+="<tr><td>Gates Blocked</td><td>"+r.audit_trail.gates_blocked+"</td></tr></table></div>";'
-    c += 'document.getElementById("gateResult").innerHTML=html})}'
+    c += """function runGate(name){fetch('/api/gate/scenario/'+name).then(function(r){return r.json()}).then(function(r){var color=r.overall_result==='PROCEED'?'var(--success)':'var(--danger)';var html='<div class="card"><h3>'+r.description+'</h3>';html+='<div class="result-value" style="color:'+color+'">'+r.overall_result+'</div>';html+='<p>Effective Autonomy: '+r.effective_autonomy_level+'</p>';html+='<p>No-Autonomous-Path Verified: '+(r.no_autonomous_path_verified?'YES':'NO — VIOLATION')+'</p>';html+='<p><em>'+r.nap_analysis+'</em></p></div>';html+='<div class="card"><h3>Gate Evaluation</h3>';r.gate_results.forEach(function(g){var gcolor=g.result==='PROCEED'?'var(--success)':'var(--danger)';html+='<div class="agent-card"><div class="agent-name">'+g.gate_name+' ('+g.gate_type+') — '+g.result+'</div>';html+='<div class="agent-action">Inputs: ['+g.inputs.join(', ')+']</div>';html+='<div class="agent-action">Provenance: ['+g.input_provenances.join(', ')+']</div>';if(g.violation)html+='<div class="agent-action" style="color:var(--danger)">VIOLATION: '+g.violation+'</div>';html+='</div>'});html+='<h4>Audit Trail</h4><table><tr><td>Gates Evaluated</td><td>'+r.audit_trail.gates_evaluated+'</td></tr>';html+='<tr><td>Gates Satisfied</td><td>'+r.audit_trail.gates_satisfied+'</td></tr>';html+='<tr><td>Gates Blocked</td><td>'+r.audit_trail.gates_blocked+'</td></tr></table></div>';document.getElementById('gateResult').innerHTML=html})}"""
     c += '</script>'
     return page('The Gate Symphony', c, 'gate')
 
@@ -1736,8 +1628,7 @@ def page_gate_tt():
         c += '<p>' + gt['description'] + '</p>'
         c += '<p style="color:var(--text-dim);font-size:0.8rem">Attenuation: ' + gt['attenuation'] + '</p>'
         c += '<div class="truth-table"><table><thead><tr>'
-        if gate_type in ('AND', 'OR', 'XOR', 'NAND'):
-            c += '<th>A</th><th>B</th><th>Output</th>'
+        c += '<th>A</th><th>B</th><th>Output</th>'
         c += '</tr></thead><tbody>'
         for row in gt['truth_table']:
             c += '<tr>'
@@ -1764,17 +1655,7 @@ def page_gate_scen():
     c += '</div>'
     c += '<div id="gateResult"></div>'
     c += '<script>'
-    c += 'function runG(name){fetch("/api/gate/scenario/"+name).then(r=>r.json()).then(r=>{'
-    c += 'let html="<div class=\\"card\\"><h3>"+r.description+"</h3>";'
-    c += 'html+="<div class=\\"result-value\\" style=\\"color:"+(r.overall_result==="PROCEED"?"var(--success)":"var(--danger)")+"\\">"+r.overall_result+"</div>";'
-    c += 'html+="<p>NAP Verified: "+(r.no_autonomous_path_verified?"YES":"NO")+"</p>";'
-    c += 'html+="<p><em>"+r.nap_analysis+"</em></p></div>";'
-    c += 'r.gate_results.forEach(g=>{html+="<div class=\\"agent-card\\"><div class=\\"agent-name\\">"+g.gate_name+" — "+g.result+"</div></div>"})'
-    c += 'document.getElementById("gateResult").innerHTML=html})}'
+    c += """function runG(name){fetch('/api/gate/scenario/'+name).then(function(r){return r.json()}).then(function(r){var color=r.overall_result==='PROCEED'?'var(--success)':'var(--danger)';var html='<div class="card"><h3>'+r.description+'</h3>';html+='<div class="result-value" style="color:'+color+'">'+r.overall_result+'</div>';html+='<p>NAP Verified: '+(r.no_autonomous_path_verified?'YES':'NO')+'</p>';html+='<p><em>'+r.nap_analysis+'</em></p></div>';r.gate_results.forEach(function(g){html+='<div class="agent-card"><div class="agent-name">'+g.gate_name+' — '+g.result+'</div></div>'});document.getElementById('gateResult').innerHTML=html})}"""
     c += '</script>'
     return page('Gate Scenarios', c, 'gate-scen')
 
-
-if __name__ == '__main__':
-    port = int(os.environ.get('PORT', 5000))
-    app.run(host='0.0.0.0', port=port, debug=False)
