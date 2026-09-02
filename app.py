@@ -169,7 +169,7 @@ SIDEBAR = """
 
 
 def page(title, subtitle, content_html, script_js=""):
-    return '<!DOCTYPE html>\n<html lang="en">\n<head>\n<meta charset="UTF-8">\n<meta name="viewport" content="width=device-width, initial-scale=1.0">\n<title>FinSight AI</title>\n<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"><\/script>\n<style>' + BASE_CSS + '</style>\n</head>\n<body>\n' + SIDEBAR + '\n<div class="main-content">\n<div class="page-header"><h2>' + title + '</h2><p>' + subtitle + '</p></div>\n' + content_html + '\n</div>\n<script>' + script_js + '<\/script>\n</body>\n</html>'
+    return '<!DOCTYPE html>\n<html lang="en">\n<head>\n<meta charset="UTF-8">\n<meta name="viewport" content="width=device-width, initial-scale=1.0">\n<title>FinSight AI</title>\n<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>\n<style>' + BASE_CSS + '</style>\n</head>\n<body>\n' + SIDEBAR + '\n<div class="main-content">\n<div class="page-header"><h2>' + title + '</h2><p>' + subtitle + '</p></div>\n' + content_html + '\n</div>\n<script>' + script_js + '</script>\n</body>\n</html>'
 
 
 # ─── Routes ─────────────────────────────────────────────────────
