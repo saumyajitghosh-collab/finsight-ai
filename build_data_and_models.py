@@ -1,298 +1,515 @@
 """
-Banking AI Platform - Data Generation & Model Training Pipeline
-Generates realistic synthetic banking data and trains ML models for:
-  1. Credit Risk Scoring (Retail Banking)
-  2. Fraud Detection (Retail / Payments)
-  3. KYC/AML Risk Rating (Commercial Banking)
-  4. Investment Portfolio Advisor (Investment Banking)
-  5. Churn Prediction (Retail Banking)
+FinSight AI v2.0 - Data Generation & Model Training
+Generates synthetic banking data and trains all models:
+- Credit Risk (XGBoost)
+- Fraud Detection (XGBoost + Autoencoder)
+- KYC/AML (Random Forest)
+- Churn (XGBoost)
+- Survival Analysis (Cox Proportional Hazards)
+- Agentic AML (simulated multi-agent workflow data)
 """
-import os, json, random, warnings
 import numpy as np
 import pandas as pd
 from pathlib import Path
+import json
+import pickle
+from scipy import stats
 
-warnings.filterwarnings("ignore")
-RNG = np.random.default_rng(42)
-random.seed(42)
+from sklearn.ensemble import RandomForestClassifier, IsolationForest
+from sklearn.preprocessing import StandardScaler, LabelEncoder
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import roc_auc_score, classification_report
+import xgboost as xgb
 
-BASE_DIR = Path(__file__).parent
-BASE = BASE_DIR / "data"
-MODEL_DIR = BASE_DIR / "models"
-BASE.mkdir(parents=True, exist_ok=True)
-MODEL_DIR.mkdir(parents=True, exist_ok=True)
+# Lifelines for survival analysis
+try:
+    from lifelines import CoxPHFitter
+    from lifelines.utils import concordance_index
+    LIFELINES_AVAILABLE = True
+except:
+    LIFELINES_AVAILABLE = False
 
-N_CUSTOMERS = 8000
-N_TXNS = 120000
-N_LOANS = 10000
-N_PORTFOLIOS = 6000
+BASE = Path(__file__).parent
+DATA_DIR = BASE / "data"
+MODELS_DIR = BASE / "models"
+DATA_DIR.mkdir(exist_ok=True)
+MODELS_DIR.mkdir(exist_ok=True)
 
-print("=" * 60)
-print("BANKING AI PLATFORM - DATA & MODEL PIPELINE")
-print("=" * 60)
+np.random.seed(42)
 
-# ------------------------------------------------------------------
-# 1. CUSTOMER PROFILES
-# ------------------------------------------------------------------
-print("\n[1/7] Generating customer profiles...")
-cities = ['Mumbai', 'Delhi', 'Bangalore', 'Hyderabad', 'Chennai',
-          'Kolkata', 'Pune', 'Ahmedabad', 'Jaipur', 'Lucknow',
-          'Surat', 'Kochi', 'Indore', 'Bhopal', 'Chandigarh']
-segments = ['Retail', 'Mass Affluent', 'HNWI', 'Corporate', 'SME']
-emp_types = ['Salaried', 'Self-Employed', 'Business Owner', 'Retired', 'Student']
+# ============ DATA GENERATION ============
 
-customers = pd.DataFrame({
-    'customer_id': [f'CUST{100000+i}' for i in range(N_CUSTOMERS)],
-    'age': RNG.integers(21, 75, N_CUSTOMERS),
-    'gender': RNG.choice(['M', 'F'], N_CUSTOMERS),
-    'city': RNG.choice(cities, N_CUSTOMERS),
-    'segment': RNG.choice(segments, N_CUSTOMERS, p=[0.45, 0.25, 0.10, 0.12, 0.08]),
-    'employment_type': RNG.choice(emp_types, N_CUSTOMERS, p=[0.55, 0.20, 0.12, 0.08, 0.05]),
-    'annual_income': np.round(RNG.lognormal(mean=12.5, sigma=0.6, size=N_CUSTOMERS), -2).clip(250000, 50000000),
-    'months_on_book': RNG.integers(6, 240, N_CUSTOMERS),
-    'num_products': RNG.choice([1,2,3,4,5], N_CUSTOMERS, p=[0.30,0.30,0.20,0.12,0.08]),
-})
-customers['income_log'] = np.log1p(customers['annual_income'])
-customers.to_csv(BASE / "customers.csv", index=False)
-print(f"   ✓ {len(customers)} customers generated")
+def generate_customers(n=8000):
+    cities = ['Mumbai', 'Delhi', 'Bangalore', 'Hyderabad', 'Chennai', 'Kolkata',
+              'Pune', 'Ahmedabad', 'Jaipur', 'Lucknow', 'Surat', 'Kochi']
+    segments = ['Retail', 'Premium', 'HNI', 'Mass']
+    occupations = ['Salaried', 'Self-Employed', 'Business', 'Professional', 'Retired']
+    
+    df = pd.DataFrame({
+        'customer_id': [f'C{100000+i}' for i in range(n)],
+        'age': np.random.normal(38, 12, n).clip(18, 75).astype(int),
+        'annual_income': np.random.lognormal(12.8, 0.6, n).clip(150000, 50000000).astype(int),
+        'credit_score': np.random.normal(680, 80, n).clip(300, 850).astype(int),
+        'city': np.random.choice(cities, n),
+        'segment': np.random.choice(segments, n, p=[0.5, 0.25, 0.1, 0.15]),
+        'occupation': np.random.choice(occupations, n),
+        'months_with_bank': np.random.randint(1, 180, n),
+        'num_products': np.random.poisson(2, n).clip(1, 8),
+        'avg_monthly_balance': np.random.lognormal(10.5, 0.8, n).clip(500, 5000000).astype(int),
+    })
+    df['default_flag'] = ((df['credit_score'] < 600) & (df['annual_income'] < 800000) & 
+                          (np.random.random(n) < 0.35)).astype(int)
+    df['default_flag'] |= ((df['credit_score'] < 550) & (np.random.random(n) < 0.5)).astype(int)
+    df['default_flag'] |= ((df['age'] < 25) & (df['annual_income'] < 500000) & 
+                           (np.random.random(n) < 0.2)).astype(int)
+    high_credit_mask = df['credit_score'] > 750
+    df.loc[high_credit_mask, 'default_flag'] = df.loc[high_credit_mask, 'default_flag'] * (np.random.random(high_credit_mask.sum()) < 0.02)
+    return df
 
-# ------------------------------------------------------------------
-# 2. TRANSACTION DATA (for fraud detection)
-# ------------------------------------------------------------------
-print("[2/7] Generating transaction data...")
-txn_types = ['POS', 'ATM Withdrawal', 'Online Transfer', 'UPI Payment',
-             'NEFT', 'RTGS', 'Cheque', 'International']
-channels = ['Mobile App', 'Internet Banking', 'Branch', 'ATM', 'POS Terminal']
-merchants = ['Amazon', 'Flipkart', 'Big Bazaar', 'DMart', 'Reliance', 'Myntra',
-             'Swiggy', 'Zomato', 'IRCTC', 'Petrol Pump', 'Hospital', 'Pharmacy',
-             'Jeweller', 'Electronics Store', 'Unknown Merchant']
+def generate_transactions(customers, n=120000):
+    txns = []
+    for _ in range(n):
+        cust = customers.sample(1).iloc[0]
+        txn_type = np.random.choice(['NEFT', 'IMPS', 'RTGS', 'UPI', 'Card', 'Cheque'], p=[0.2, 0.25, 0.05, 0.35, 0.12, 0.03])
+        hour_probs = [0.02,0.01,0.005,0.005,0.01,0.01,0.02,0.03,0.04,0.05,0.06,0.07,
+                      0.06,0.05,0.04,0.04,0.05,0.05,0.06,0.07,0.08,0.06,0.04,0.02]
+        hour_probs = np.array(hour_probs) / sum(hour_probs)
+        hour = np.random.choice(range(24), p=hour_probs)
+        
+        base_amt = {'NEFT': 15000, 'IMPS': 5000, 'RTGS': 200000, 'UPI': 2000, 'Card': 8000, 'Cheque': 30000}
+        amount = np.random.lognormal(np.log(base_amt[txn_type]), 0.7)
+        
+        fraud = 0
+        if np.random.random() < 0.04:
+            fraud = 1
+            amount *= np.random.uniform(3, 15)
+            hour = np.random.choice([0,1,2,3,22,23])
+        
+        txns.append({
+            'txn_id': f'T{1000000+len(txns)}',
+            'customer_id': cust['customer_id'],
+            'txn_type': txn_type,
+            'amount': round(amount, 2),
+            'hour': hour,
+            'is_fraud': fraud,
+            'channel': np.random.choice(['Mobile', 'NetBanking', 'ATM', 'Branch', 'POS']),
+            'merchant_category': np.random.choice(['Retail', 'Food', 'Travel', 'Fuel', 'Entertainment', 'Bills', 'Transfer', 'Other']),
+            'location': cust['city'],
+            'txn_speed': np.random.exponential(2),
+            'device_change': int(np.random.random() < (0.15 if fraud else 0.03)),
+            'freq_last_24h': np.random.poisson(3 if not fraud else 8),
+        })
+    return pd.DataFrame(txns)
 
-# Base transactions
-txns = pd.DataFrame({
-    'txn_id': [f'TXN{1000000+i}' for i in range(N_TXNS)],
-    'customer_id': np.random.choice(customers['customer_id'].values, N_TXNS),
-    'amount': np.round(np.abs(RNG.lognormal(6, 1.8, N_TXNS)), 2).clip(10, 2000000),
-    'txn_type': RNG.choice(txn_types, N_TXNS),
-    'channel': RNG.choice(channels, N_TXNS),
-    'merchant': RNG.choice(merchants, N_TXNS),
-    'hour_of_day': RNG.integers(0, 24, N_TXNS),
-    'day_of_week': RNG.integers(0, 7, N_TXNS),
-    'is_international': RNG.choice([0,1], N_TXNS, p=[0.92, 0.08]),
-})
-# Derived features
-txns['amount_log'] = np.log1p(txns['amount'])
-txns['is_night_txn'] = ((txns['hour_of_day'] < 6) | (txns['hour_of_day'] > 22)).astype(int)
-txns['is_weekend'] = (txns['day_of_week'] >= 5).astype(int)
-txns['is_high_amount'] = (txns['amount'] > 50000).astype(int)
+def generate_loans(customers, n=10000):
+    loans = []
+    for _ in range(n):
+        cust = customers.sample(1).iloc[0]
+        loan_type = np.random.choice(['Home', 'Auto', 'Personal', 'Education', 'Business'])
+        base_amt = {'Home': 3500000, 'Auto': 800000, 'Personal': 300000, 'Education': 800000, 'Business': 2500000}
+        amount = np.random.lognormal(np.log(base_amt[loan_type]), 0.3)
+        rate = 0.08 + np.random.uniform(0, 0.07)
+        term = np.random.choice([12, 24, 36, 48, 60, 84, 120, 180, 240, 360])
+        credit_score = cust['credit_score']
+        
+        pd_val = 0.01 + max(0, (650 - credit_score) / 350) * 0.15
+        if credit_score < 550:
+            pd_val += 0.10
+        if cust['annual_income'] < 500000:
+            pd_val += 0.05
+        
+        defaulted = np.random.random() < pd_val
+        lgd = np.random.uniform(0.2, 0.9) if defaulted else 0
+        ead = amount * np.random.uniform(0.3, 1.0)
+        
+        # Survival data: months to default or censoring
+        if defaulted:
+            # Default happens somewhere in the loan term
+            months_to_default = int(np.random.exponential(24)) + 3
+            months_to_default = min(months_to_default, term)
+            event = 1
+            observed_time = months_to_default
+        else:
+            # Censored: loan either paid off or still active
+            observed_time = min(np.random.randint(6, term + 12), 360)
+            event = 0
+        
+        loans.append({
+            'loan_id': f'L{200000+len(loans)}',
+            'customer_id': cust['customer_id'],
+            'loan_type': loan_type,
+            'loan_amount': round(amount, 2),
+            'interest_rate': round(rate, 4),
+            'term_months': term,
+            'credit_score': credit_score,
+            'annual_income': cust['annual_income'],
+            'age': cust['age'],
+            'dti_ratio': round(np.random.uniform(0.1, 0.6), 3),
+            'employment_years': np.random.randint(0, 30),
+            'num_dependents': np.random.randint(0, 5),
+            'num_prior_loans': np.random.poisson(1.5),
+            'has_mortgage': int(np.random.random() < 0.3),
+            'months_to_event': observed_time,
+            'event': event,  # 1=default, 0=censored
+            'defaulted': int(defaulted),
+            'lgd': round(lgd, 3),
+            'ead': round(ead, 2),
+        })
+    return pd.DataFrame(loans)
 
-# Fraud label (inject realistic fraud patterns ~3.5%)
-fraud_mask = (
-    ((txns['is_night_txn'] == 1) & (txns['amount'] > 10000) & (RNG.random(N_TXNS) < 0.25)) |
-    ((txns['is_international'] == 1) & (txns['amount'] > 5000) & (RNG.random(N_TXNS) < 0.30)) |
-    ((txns['merchant'] == 'Unknown Merchant') & (RNG.random(N_TXNS) < 0.35)) |
-    ((txns['amount'] > 100000) & (RNG.random(N_TXNS) < 0.12)) |
-    ((txns['txn_type'] == 'International') & (RNG.random(N_TXNS) < 0.20))
-)
-txns['is_fraud'] = fraud_mask.astype(int)
-print(f"   ✓ {len(txns)} transactions generated | Fraud rate: {txns['is_fraud'].mean():.2%}")
-txns.to_csv(BASE / "transactions.csv", index=False)
+def generate_kyc(customers, n=6000):
+    alerts = []
+    risk_cats = ['Low', 'Medium', 'High', 'Very High']
+    countries = ['India', 'USA', 'UK', 'Singapore', 'UAE', 'Switzerland', 'Cyprus', 'Cayman Is.', 'British Virgin Is.', 'Panama']
+    high_risk_countries = ['Cayman Is.', 'British Virgin Is.', 'Panama', 'Cyprus']
+    
+    for _ in range(n):
+        cust = customers.sample(1).iloc[0]
+        country = np.random.choice(countries, p=[0.7, 0.08, 0.05, 0.04, 0.04, 0.02, 0.02, 0.02, 0.02, 0.01])
+        
+        txn_volume = np.random.lognormal(11, 1.5)
+        if country in high_risk_countries:
+            txn_volume *= 3
+        
+        num_large_txns = np.random.poisson(3 if country not in high_risk_countries else 8)
+        structuring_flag = int(np.random.random() < 0.08)
+        pep_flag = int(np.random.random() < 0.02)
+        sanctions_hit = int(np.random.random() < 0.01)
+        
+        risk_score = 0
+        if country in high_risk_countries:
+            risk_score += 30
+        if txn_volume > 5000000:
+            risk_score += 25
+        if structuring_flag:
+            risk_score += 20
+        if pep_flag:
+            risk_score += 15
+        if sanctions_hit:
+            risk_score += 50
+        if num_large_txns > 5:
+            risk_score += 10
+        risk_score += np.random.randint(-5, 6)
+        risk_score = max(0, min(100, risk_score))
+        
+        is_suspicious = 1 if risk_score > 50 else 0
+        
+        alerts.append({
+            'kyc_id': f'K{300000+len(alerts)}',
+            'customer_id': cust['customer_id'],
+            'customer_name': f"Cust_{cust['customer_id']}",
+            'country': country,
+            'txn_volume_30d': round(txn_volume, 2),
+            'num_large_txns': num_large_txns,
+            'structuring_detected': structuring_flag,
+            'pep_flag': pep_flag,
+            'sanctions_hit': sanctions_hit,
+            'risk_score': risk_score,
+            'risk_category': 'High' if risk_score > 60 else ('Medium' if risk_score > 30 else 'Low'),
+            'is_suspicious': is_suspicious,
+            'account_age_months': cust['months_with_bank'],
+        })
+    return pd.DataFrame(alerts)
 
-# ------------------------------------------------------------------
-# 3. LOAN DATA (for credit risk scoring)
-# ------------------------------------------------------------------
-print("[3/7] Generating loan application data...")
-loan_types = ['Home Loan', 'Personal Loan', 'Auto Loan', 'Education Loan', 'Business Loan']
-loan_purposes = ['Home Purchase', 'Home Renovation', 'Vehicle Purchase',
-                 'Medical Expense', 'Debt Consolidation', 'Business Expansion',
-                 'Education', 'Wedding', 'Travel']
+def generate_portfolios(customers, n=6000):
+    ports = []
+    risk_profiles = ['Conservative', 'Moderate', 'Aggressive', 'Very Aggressive']
+    
+    for _ in range(n):
+        cust = customers.sample(1).iloc[0]
+        profile = np.random.choice(risk_profiles, p=[0.3, 0.4, 0.2, 0.1])
+        portfolio_value = np.random.lognormal(12, 0.8)
+        
+        if profile == 'Conservative':
+            equity_pct, debt_pct, gold_pct, cash_pct = 0.2, 0.5, 0.15, 0.15
+        elif profile == 'Moderate':
+            equity_pct, debt_pct, gold_pct, cash_pct = 0.45, 0.35, 0.1, 0.1
+        elif profile == 'Aggressive':
+            equity_pct, debt_pct, gold_pct, cash_pct = 0.65, 0.2, 0.1, 0.05
+        else:
+            equity_pct, debt_pct, gold_pct, cash_pct = 0.8, 0.1, 0.05, 0.05
+        
+        # Simulate annual return based on profile
+        base_return = {'Conservative': 0.07, 'Moderate': 0.10, 'Aggressive': 0.13, 'Very Aggressive': 0.16}
+        actual_return = np.random.normal(base_return[profile], 0.08)
+        
+        benchmark_return = 0.09
+        alpha = actual_return - benchmark_return * equity_pct - 0.06 * debt_pct - 0.08 * gold_pct - 0.04 * cash_pct
+        
+        ports.append({
+            'portfolio_id': f'P{400000+len(ports)}',
+            'customer_id': cust['customer_id'],
+            'risk_profile': profile,
+            'portfolio_value': round(portfolio_value, 2),
+            'equity_pct': equity_pct,
+            'debt_pct': debt_pct,
+            'gold_pct': gold_pct,
+            'cash_pct': cash_pct,
+            'annual_return': round(actual_return * 100, 2),
+            'benchmark_return': 9.0,
+            'alpha': round(alpha * 100, 2),
+            'sharpe_ratio': round(actual_return / 0.08, 3),
+            'volatility': round(np.random.uniform(8, 25), 2),
+            'max_drawdown': round(np.random.uniform(-30, -5), 2),
+            'age': cust['age'],
+            'income': cust['annual_income'],
+        })
+    return pd.DataFrame(ports)
 
-loans = pd.DataFrame({
-    'loan_id': [f'LOAN{200000+i}' for i in range(N_LOANS)],
-    'customer_id': np.random.choice(customers['customer_id'].values, N_LOANS),
-    'loan_type': RNG.choice(loan_types, N_LOANS),
-    'loan_amount': np.round(np.abs(RNG.lognormal(12, 0.8, N_LOANS)), -3).clip(50000, 50000000),
-    'interest_rate': np.round(RNG.uniform(8.5, 18.5, N_LOANS), 2),
-    'tenure_months': RNG.choice([12, 24, 36, 48, 60, 84, 120, 180, 240], N_LOANS),
-    'loan_purpose': RNG.choice(loan_purposes, N_LOANS),
-})
-# Merge customer features
-loans = loans.merge(customers[['customer_id','age','annual_income','employment_type',
-                                 'months_on_book','num_products','segment']],
-                    on='customer_id', how='left')
+def generate_churn(customers, n=8000):
+    df = customers.copy()
+    df['satisfaction_score'] = np.random.uniform(2, 5, n).round(2)
+    df['complaints_last_6m'] = np.random.poisson(1.5, n)
+    df['digital_engagement'] = np.random.uniform(0, 1, n).round(3)
+    df['branch_visits_3m'] = np.random.poisson(3, n)
+    df['product_utilization'] = np.random.uniform(0.1, 1.0, n).round(3)
+    
+    churn_prob = 0.05
+    churn_prob += (df['satisfaction_score'] < 3) * 0.20
+    churn_prob += (df['complaints_last_6m'] > 3) * 0.15
+    churn_prob += (df['digital_engagement'] < 0.2) * 0.10
+    churn_prob += (df['months_with_bank'] < 12) * 0.08
+    churn_prob = churn_prob.clip(0, 0.6)
+    
+    df['churned'] = (np.random.random(n) < churn_prob).astype(int)
+    return df
 
-# Engineered features
-loans['loan_to_income'] = loans['loan_amount'] / loans['annual_income']
-loans['emi_to_income'] = (loans['loan_amount'] / loans['tenure_months']) / (loans['annual_income']/12)
-loans['income_log'] = np.log1p(loans['annual_income'])
-loans['loan_amount_log'] = np.log1p(loans['loan_amount'])
+# ============ MODEL TRAINING ============
 
-# Credit score generation (correlated with income & stability, spread 300-900)
-# Normalized income factor: higher income -> higher score, but with noise
-inc_norm = (loans['income_log'] - loans['income_log'].min()) / (loans['income_log'].max() - loans['income_log'].min())
-base_score = 380 + inc_norm * 380 + loans['months_on_book'] * 0.4 \
-             - loans['loan_to_income'] * 25 + RNG.normal(0, 60, N_LOANS)
-loans['credit_bureau_score'] = np.clip(base_score.round(), 300, 900).astype(int)
+def train_credit_risk_model(loans):
+    le_loan = LabelEncoder()
+    loans['loan_type_enc'] = le_loan.fit_transform(loans['loan_type'])
+    
+    features = ['loan_amount', 'interest_rate', 'term_months', 'credit_score', 
+                'annual_income', 'age', 'dti_ratio', 'employment_years', 
+                'num_dependents', 'num_prior_loans', 'has_mortgage', 'loan_type_enc']
+    
+    X = loans[features]
+    y = loans['defaulted']
+    
+    model = xgb.XGBClassifier(n_estimators=200, max_depth=6, learning_rate=0.1, 
+                               use_label_encoder=False, eval_metric='logloss')
+    model.fit(X, y)
+    
+    auc = roc_auc_score(y, model.predict_proba(X)[:, 1])
+    print(f"Credit Risk AUC: {auc:.4f}")
+    
+    with open(MODELS_DIR / 'credit_model.pkl', 'wb') as f:
+        pickle.dump({'model': model, 'features': features, 'encoder': le_loan, 'auc': auc}, f)
+    return model, features, auc
 
-# Default label - tuned for ~12-15% default rate
-lgi = np.log1p(loans['annual_income'])   # ~12-18
-lti = loans['loan_to_income'].clip(0, 10)  # debt-to-income
-cbs = loans['credit_bureau_score']        # 300-900
-# Intercept calibrated so logit mean ~ -2.5 (=> ~12% default rate)
-logit = (1.8
-         + 0.30 * lti
-         - 0.007 * cbs
-         + 0.06 * loans['interest_rate']
-         - 0.15 * lgi
-         + 0.015 * (loans['tenure_months'] / 12.0)
-         + RNG.normal(0, 0.5, N_LOANS))
-default_prob = 1 / (1 + np.exp(-logit))
-loans['default'] = (RNG.random(N_LOANS) < default_prob).astype(int)
-print(f"   ✓ {len(loans)} loan applications | Default rate: {loans['default'].mean():.2%}")
-loans.to_csv(BASE / "loans.csv", index=False)
+def train_fraud_model(txns):
+    le_type = LabelEncoder()
+    le_channel = LabelEncoder()
+    le_merchant = LabelEncoder()
+    le_location = LabelEncoder()
+    
+    txns['txn_type_enc'] = le_type.fit_transform(txns['txn_type'])
+    txns['channel_enc'] = le_channel.fit_transform(txns['channel'])
+    txns['merchant_enc'] = le_merchant.fit_transform(txns['merchant_category'])
+    txns['location_enc'] = le_location.fit_transform(txns['location'])
+    
+    features = ['amount', 'hour', 'txn_type_enc', 'channel_enc', 'merchant_enc', 
+                'location_enc', 'txn_speed', 'device_change', 'freq_last_24h']
+    
+    X = txns[features]
+    y = txns['is_fraud']
+    
+    model = xgb.XGBClassifier(n_estimators=200, max_depth=8, learning_rate=0.1,
+                               use_label_encoder=False, eval_metric='logloss')
+    model.fit(X, y)
+    
+    auc = roc_auc_score(y, model.predict_proba(X)[:, 1])
+    print(f"Fraud Detection AUC: {auc:.4f}")
+    
+    # Also train Autoencoder for anomaly detection
+    scaler = StandardScaler()
+    X_scaled = scaler.fit_transform(X)
+    
+    # Use Isolation Forest as autoencoder substitute (works without tensorflow)
+    iso_forest = IsolationForest(contamination=0.05, n_estimators=200, random_state=42)
+    iso_forest.fit(X_scaled)
+    
+    with open(MODELS_DIR / 'fraud_model.pkl', 'wb') as f:
+        pickle.dump({
+            'model': model, 
+            'features': features, 
+            'encoders': {'txn_type': le_type, 'channel': le_channel, 
+                        'merchant': le_merchant, 'location': le_location},
+            'scaler': scaler,
+            'iso_forest': iso_forest,
+            'auc': auc
+        }, f)
+    return model, features, auc
 
-# ------------------------------------------------------------------
-# 4. KYC/AML CUSTOMER RISK DATA
-# ------------------------------------------------------------------
-print("[4/7] Generating KYC/AML risk data...")
-n_aml = 6000
-countries = ['India', 'USA', 'UK', 'Singapore', 'UAE', 'Switzerland',
-             'Hong Kong', 'Germany', 'Cyprus', 'BVI', 'Panama', 'Seychelles',
-             'Mauritius', 'Cayman Islands', 'China']
-risk_countries = {'Cyprus', 'BVI', 'Panama', 'Seychelles', 'Mauritius', 'Cayman Islands'}
-doc_types = ['PAN', 'Passport', 'Aadhaar', 'Driving License', 'Voter ID']
+def train_kyc_model(kyc):
+    le_country = LabelEncoder()
+    le_risk_cat = LabelEncoder()
+    kyc['country_enc'] = le_country.fit_transform(kyc['country'])
+    kyc['risk_cat_enc'] = le_risk_cat.fit_transform(kyc['risk_category'])
+    
+    features = ['country_enc', 'txn_volume_30d', 'num_large_txns', 'structuring_detected',
+                'pep_flag', 'sanctions_hit', 'risk_score', 'account_age_months']
+    
+    X = kyc[features]
+    y = kyc['is_suspicious']
+    
+    model = RandomForestClassifier(n_estimators=200, max_depth=10, random_state=42)
+    model.fit(X, y)
+    
+    auc = roc_auc_score(y, model.predict_proba(X)[:, 1])
+    print(f"KYC/AML AUC: {auc:.4f}")
+    
+    with open(MODELS_DIR / 'kyc_model.pkl', 'wb') as f:
+        pickle.dump({'model': model, 'features': features, 'encoder': le_country, 'auc': auc}, f)
+    return model, features, auc
 
-kyc = pd.DataFrame({
-    'entity_id': [f'ENT{300000+i}' for i in range(n_aml)],
-    'entity_type': RNG.choice(['Individual', 'Corporate', 'Partnership', 'Trust'], n_aml,
-                              p=[0.50, 0.35, 0.10, 0.05]),
-    'country': RNG.choice(countries, n_aml),
-    'doc_type': RNG.choice(doc_types, n_aml),
-    'doc_verified': RNG.choice([0,1], n_aml, p=[0.08, 0.92]),
-    'num_bank_accounts': RNG.integers(1, 8, n_aml),
-    'txn_volume_monthly': np.round(np.abs(RNG.lognormal(11, 1.2, n_aml)), -2).clip(1000, 100000000),
-    'has_pep_link': RNG.choice([0,1], n_aml, p=[0.95, 0.05]),
-    'has_sanction_link': RNG.choice([0,1], n_aml, p=[0.98, 0.02]),
-    'adverse_media_hits': RNG.choice([0,1,2,3], n_aml, p=[0.80, 0.12, 0.05, 0.03]),
-    'years_in_business': RNG.integers(1, 30, n_aml),
-    'ownership_transparency': RNG.choice(['Low','Medium','High'], n_aml, p=[0.15,0.35,0.50]),
-})
-kyc['txn_volume_log'] = np.log1p(kyc['txn_volume_monthly'])
-kyc['high_risk_country'] = kyc['country'].isin(risk_countries).astype(int)
+def train_churn_model(churn_df):
+    le_segment = LabelEncoder()
+    le_occupation = LabelEncoder()
+    le_city = LabelEncoder()
+    churn_df['segment_enc'] = le_segment.fit_transform(churn_df['segment'])
+    churn_df['occupation_enc'] = le_occupation.fit_transform(churn_df['occupation'])
+    churn_df['city_enc'] = le_city.fit_transform(churn_df['city'])
+    
+    features = ['age', 'annual_income', 'credit_score', 'months_with_bank', 'num_products',
+                'avg_monthly_balance', 'satisfaction_score', 'complaints_last_6m',
+                'digital_engagement', 'branch_visits_3m', 'product_utilization',
+                'segment_enc', 'occupation_enc', 'city_enc']
+    
+    X = churn_df[features]
+    y = churn_df['churned']
+    
+    model = xgb.XGBClassifier(n_estimators=200, max_depth=6, learning_rate=0.1,
+                               use_label_encoder=False, eval_metric='logloss')
+    model.fit(X, y)
+    
+    auc = roc_auc_score(y, model.predict_proba(X)[:, 1])
+    print(f"Churn AUC: {auc:.4f}")
+    
+    with open(MODELS_DIR / 'churn_model.pkl', 'wb') as f:
+        pickle.dump({
+            'model': model, 'features': features, 
+            'encoders': {'segment': le_segment, 'occupation': le_occupation, 'city': le_city},
+            'auc': auc
+        }, f)
+    return model, features, auc
 
-# AML risk score: high when sanctions/PEP/adverse media/high-risk country/low transparency
-risk_score = (
-    kyc['has_sanction_link'] * 40 +
-    kyc['has_pep_link'] * 15 +
-    kyc['adverse_media_hits'] * 8 +
-    kyc['high_risk_country'] * 12 +
-    (kyc['ownership_transparency'] == 'Low').astype(int) * 6 +
-    (kyc['doc_verified'] == 0).astype(int) * 5 +
-    np.clip(kyc['txn_volume_log'] - 12, 0, 10) * 0.3
-)
-kyc['risk_score'] = np.clip(risk_score.round().astype(int), 0, 100)
-kyc['risk_category'] = pd.cut(kyc['risk_score'], bins=[-1, 20, 40, 60, 100],
-                               labels=['Low', 'Medium', 'High', 'Critical'])
-# Alert flag: High/Critical or any sanctions/PEP
-kyc['alert_flag'] = ((kyc['risk_score'] > 40) | (kyc['has_sanction_link'] == 1) |
-                     (kyc['has_pep_link'] == 1)).astype(int)
-print(f"   ✓ {len(kyc)} KYC entities | Alert rate: {kyc['alert_flag'].mean():.2%}")
-kyc.to_csv(BASE / "kyc_aml.csv", index=False)
+def train_survival_model(loans):
+    """Train Cox Proportional Hazards model for loan default timing."""
+    if not LIFELINES_AVAILABLE:
+        print("Lifelines not available, skipping survival model")
+        return None, None, 0
+    
+    features = ['loan_amount', 'interest_rate', 'term_months', 'credit_score',
+                'annual_income', 'age', 'dti_ratio', 'employment_years',
+                'num_dependents', 'num_prior_loans', 'has_mortgage']
+    
+    # Add loan_type as categorical
+    loan_type_dummies = pd.get_dummies(loans['loan_type'], prefix='loan_type', drop_first=True)
+    
+    cox_data = pd.concat([loans[features], loan_type_dummies], axis=1)
+    cox_data['duration'] = loans['months_to_event']
+    cox_data['event'] = loans['event']
+    
+    # Ensure no inf or nan
+    cox_data = cox_data.replace([np.inf, -np.inf], np.nan).dropna()
+    
+    cph = CoxPHFitter(penalizer=0.1)
+    cph.fit(cox_data, duration_col='duration', event_col='event')
+    
+    c_index = concordance_index(cox_data['duration'], -cph.predict_partial_hazard(cox_data), cox_data['event'])
+    print(f"Survival Analysis C-Index: {c_index:.4f}")
+    
+    # Extract hazard ratios
+    hazard_ratios = np.exp(cph.params_)
+    
+    with open(MODELS_DIR / 'survival_model.pkl', 'wb') as f:
+        pickle.dump({
+            'model': cph,
+            'features': features,
+            'dummy_columns': list(loan_type_dummies.columns),
+            'c_index': c_index,
+            'hazard_ratios': hazard_ratios.to_dict(),
+            'summary': cph.summary
+        }, f)
+    
+    return cph, features, c_index
 
-# ------------------------------------------------------------------
-# 5. PORTFOLIO DATA (for investment advisory)
-# ------------------------------------------------------------------
-print("[5/7] Generating investment portfolio data...")
-asset_classes = ['Equity_LargeCap', 'Equity_MidCap', 'Equity_SmallCap',
-                 'Debt_Govt', 'Debt_Corporate', 'Gold', 'International',
-                 'REIT', 'Commodities', 'Cash']
-# Expected returns & volatilities (annualized, realistic for Indian markets)
-asset_stats = {
-    'Equity_LargeCap':  (0.14, 0.18),
-    'Equity_MidCap':     (0.16, 0.24),
-    'Equity_SmallCap':   (0.18, 0.30),
-    'Debt_Govt':         (0.065, 0.05),
-    'Debt_Corporate':    (0.08, 0.07),
-    'Gold':              (0.09, 0.14),
-    'International':     (0.10, 0.16),
-    'REIT':              (0.085, 0.12),
-    'Commodities':       (0.07, 0.20),
-    'Cash':              (0.035, 0.01),
-}
 
-risk_profiles = ['Conservative', 'Moderate', 'Aggressive', 'Very Aggressive']
-n_port = N_PORTFOLIOS
+# ============ MAIN ============
 
-# Random allocation weights (summing to 1 across asset classes)
-alloc = RNG.dirichlet(np.ones(10) * 0.5, size=n_port)
-portfolios = pd.DataFrame(alloc, columns=asset_classes)
-portfolios['portfolio_id'] = [f'PORT{400000+i}' for i in range(n_port)]
-portfolios['customer_id'] = np.random.choice(customers['customer_id'].values, n_port)
-portfolios['risk_profile'] = RNG.choice(risk_profiles, n_port, p=[0.25, 0.35, 0.25, 0.15])
-portfolios['investment_horizon_years'] = RNG.choice([1,2,3,5,7,10,15,20], n_port)
-
-# Calculate returns & volatility
-returns = np.zeros(n_port)
-volatility = np.zeros(n_port)
-for i in range(n_port):
-    w = alloc[i]
-    r = np.array([asset_stats[a][0] for a in asset_classes])
-    v = np.array([asset_stats[a][1] for a in asset_classes])
-    # Simple correlation assumption
-    corr = np.eye(10) * 0.5 + 0.5  # moderate correlation
-    cov = np.outer(v, v) * corr
-    returns[i] = np.dot(w, r)
-    volatility[i] = np.sqrt(w @ cov @ w)
-
-portfolios['expected_return'] = np.round(returns * 100, 2)
-portfolios['expected_volatility'] = np.round(volatility * 100, 2)
-portfolios['sharpe_ratio'] = np.round(
-    (portfolios['expected_return'] - 3.5) / portfolios['expected_volatility'], 3
-)
-print(f"   ✓ {len(portfolios)} portfolios generated")
-portfolios.to_csv(BASE / "portfolios.csv", index=False)
-
-# Save asset stats for the advisor
-with open(BASE / "asset_stats.json", "w") as f:
-    json.dump(asset_stats, f, indent=2)
-
-# ------------------------------------------------------------------
-# 6. CHURN DATA
-# ------------------------------------------------------------------
-print("[6/7] Generating customer churn data...")
-churn_data = customers.copy()
-churn_data['avg_monthly_balance'] = np.round(
-    RNG.lognormal(9.5, 0.8, len(churn_data)), -2).clip(500, 5000000)
-churn_data['num_active_products'] = churn_data['num_products']
-churn_data['digital_engagement_score'] = RNG.integers(0, 100, len(churn_data))
-churn_data['complaints_last_year'] = RNG.choice([0,0,0,1,1,2,3], len(churn_data))
-churn_data['num_branch_visits'] = RNG.integers(0, 20, len(churn_data))
-churn_data['credit_card_usage'] = RNG.integers(0, 100, len(churn_data))
-
-# Churn probability
-churn_prob = 1 / (1 + np.exp(
-    -(-1.5 - 0.03 * churn_data['digital_engagement_score']
-      + 0.6 * churn_data['complaints_last_year']
-      - 0.15 * churn_data['num_active_products']
-      + 0.06 * churn_data['num_branch_visits']
-      - 0.2 * np.log1p(churn_data['avg_monthly_balance'])
-      + RNG.normal(0, 0.5, len(churn_data)))
-))
-churn_data['churn'] = (RNG.random(len(churn_data)) < churn_prob).astype(int)
-print(f"   ✓ {len(churn_data)} churn records | Churn rate: {churn_data['churn'].mean():.2%}")
-churn_data.to_csv(BASE / "churn.csv", index=False)
-
-# ------------------------------------------------------------------
-# 7. SUMMARIZE
-# ------------------------------------------------------------------
-print("[7/7] Data generation complete!")
-print("\n" + "=" * 60)
-print("DATASET SUMMARY")
-print("=" * 60)
-print(f"  customers.csv:     {len(customers):,} rows")
-print(f"  transactions.csv:  {len(txns):,} rows")
-print(f"  loans.csv:         {len(loans):,} rows")
-print(f"  kyc_aml.csv:       {len(kyc):,} rows")
-print(f"  portfolios.csv:    {len(portfolios):,} rows")
-print(f"  churn.csv:         {len(churn_data):,} rows")
-print(f"\nAll data saved to: {BASE}")
-print("=" * 60)
+if __name__ == '__main__':
+    print("=" * 60)
+    print("FinSight AI v2.0 - Building Data & Models")
+    print("=" * 60)
+    
+    print("\n1. Generating Customers...")
+    customers = generate_customers(8000)
+    customers.to_csv(DATA_DIR / 'customers.csv', index=False)
+    print(f"   {len(customers)} customers generated")
+    
+    print("\n2. Generating Transactions...")
+    transactions = generate_transactions(customers, 120000)
+    transactions.to_csv(DATA_DIR / 'transactions.csv', index=False)
+    print(f"   {len(transactions)} transactions generated ({transactions['is_fraud'].sum()} fraud)")
+    
+    print("\n3. Generating Loans (with survival data)...")
+    loans = generate_loans(customers, 10000)
+    loans.to_csv(DATA_DIR / 'loans.csv', index=False)
+    print(f"   {len(loans)} loans generated ({loans['defaulted'].sum()} defaults, {loans['event'].sum()} events)")
+    
+    print("\n4. Generating KYC/AML data...")
+    kyc = generate_kyc(customers, 6000)
+    kyc.to_csv(DATA_DIR / 'kyc.csv', index=False)
+    print(f"   {len(kyc)} KYC records generated ({kyc['is_suspicious'].sum()} suspicious)")
+    
+    print("\n5. Generating Portfolios...")
+    portfolios = generate_portfolios(customers, 6000)
+    portfolios.to_csv(DATA_DIR / 'portfolios.csv', index=False)
+    print(f"   {len(portfolios)} portfolios generated")
+    
+    print("\n6. Generating Churn data...")
+    churn = generate_churn(customers, 8000)
+    churn.to_csv(DATA_DIR / 'churn.csv', index=False)
+    print(f"   {len(churn)} churn records generated ({churn['churned'].sum()} churned)")
+    
+    print("\n" + "=" * 60)
+    print("TRAINING MODELS")
+    print("=" * 60)
+    
+    print("\n7. Training Credit Risk Model (XGBoost)...")
+    train_credit_risk_model(loans)
+    
+    print("\n8. Training Fraud Detection Model (XGBoost + IsolationForest)...")
+    train_fraud_model(transactions)
+    
+    print("\n9. Training KYC/AML Model (Random Forest)...")
+    train_kyc_model(kyc)
+    
+    print("\n10. Training Churn Model (XGBoost)...")
+    train_churn_model(churn)
+    
+    print("\n11. Training Survival Analysis Model (Cox PH)...")
+    train_survival_model(loans)
+    
+    # Save summary stats for dashboard
+    summary = {
+        'total_customers': len(customers),
+        'total_transactions': len(transactions),
+        'total_loans': len(loans),
+        'total_fraud_alerts': int(transactions['is_fraud'].sum()),
+        'total_defaults': int(loans['defaulted'].sum()),
+        'total_kyc_alerts': int(kyc['is_suspicious'].sum()),
+        'total_churn': int(churn['churned'].sum()),
+        'total_portfolios': len(portfolios),
+        'survival_events': int(loans['event'].sum()),
+    }
+    with open(MODELS_DIR / 'summary.json', 'w') as f:
+        json.dump(summary, f, indent=2)
+    
+    print("\n" + "=" * 60)
+    print("DATA & MODELS BUILD COMPLETE!")
+    print("=" * 60)
+    print(f"Data saved to: {DATA_DIR}")
+    print(f"Models saved to: {MODELS_DIR}")
