@@ -1,16 +1,11 @@
 """
-FinSight AI — Banking Intelligence Platform
-Flask web application with ML models for:
-  1. Credit Risk Scoring (Retail Banking)
-  2. Fraud Detection (Retail / Payments)
-  3. KYC/AML Risk Assessment (Commercial Banking)
-  4. Investment Portfolio Advisor (Investment Banking)
-  5. Customer Churn Prediction (Retail Banking)
-
-Run locally:  python app.py  →  http://localhost:5000
-Production:   gunicorn app:app  (Procfile handles this on Render)
+FinSight AI — Banking Intelligence Platform (Production-Optimized)
+Optimized for Render free tier (512MB RAM):
+  - Lazy-loads DataFrames only when first API call is made
+  - Loads CSVs with optimized dtypes to reduce memory
+  - Loads models on-demand
 """
-import os, json
+import os, json, gc
 import numpy as np
 import pandas as pd
 import joblib
@@ -23,32 +18,77 @@ BASE_DIR = Path(__file__).parent
 DATA_DIR = BASE_DIR / "data"
 MODEL_DIR = BASE_DIR / "models"
 
-# ─── Load models & data ──────────────────────────────────────────
-print("Loading models and data...")
+# ─── Lazy-loaded globals ────────────────────────────────────────
+_credit_model = None
+_fraud_model = None
+_kyc_model = None
+_churn_model = None
+_encoders = None
+_credit_features = None
+_fraud_features = None
+_kyc_features = None
+_churn_features = None
+_model_metrics = None
+_asset_stats = None
+customers_df = None
+txns_df = None
+loans_df = None
+kyc_df = None
+portfolios_df = None
+churn_df = None
 
-credit_model = joblib.load(MODEL_DIR / "credit_risk_model.pkl")
-fraud_model = joblib.load(MODEL_DIR / "fraud_model.pkl")
-kyc_model = joblib.load(MODEL_DIR / "kyc_model.pkl")
-churn_model = joblib.load(MODEL_DIR / "churn_model.pkl")
-encoders = joblib.load(MODEL_DIR / "all_encoders.pkl")
-credit_features = joblib.load(MODEL_DIR / "credit_features.pkl")
-fraud_features = joblib.load(MODEL_DIR / "fraud_features.pkl")
-kyc_features = joblib.load(MODEL_DIR / "kyc_features.pkl")
-churn_features = joblib.load(MODEL_DIR / "churn_features.pkl")
 
-with open(MODEL_DIR / "model_metrics.json") as f:
-    model_metrics = json.load(f)
-with open(DATA_DIR / "asset_stats.json") as f:
-    asset_stats = json.load(f)
+def _load_models():
+    global _credit_model, _fraud_model, _kyc_model, _churn_model
+    global _encoders, _credit_features, _fraud_features, _kyc_features, _churn_features
+    global _model_metrics, _asset_stats
+    if _credit_model is not None:
+        return
+    print("Loading models...")
+    _credit_model = joblib.load(MODEL_DIR / "credit_risk_model.pkl")
+    _fraud_model = joblib.load(MODEL_DIR / "fraud_model.pkl")
+    _kyc_model = joblib.load(MODEL_DIR / "kyc_model.pkl")
+    _churn_model = joblib.load(MODEL_DIR / "churn_model.pkl")
+    _encoders = joblib.load(MODEL_DIR / "all_encoders.pkl")
+    _credit_features = joblib.load(MODEL_DIR / "credit_features.pkl")
+    _fraud_features = joblib.load(MODEL_DIR / "fraud_features.pkl")
+    _kyc_features = joblib.load(MODEL_DIR / "kyc_features.pkl")
+    _churn_features = joblib.load(MODEL_DIR / "churn_features.pkl")
+    with open(MODEL_DIR / "model_metrics.json") as f:
+        _model_metrics = json.load(f)
+    with open(DATA_DIR / "asset_stats.json") as f:
+        _asset_stats = json.load(f)
+    print("Models loaded.")
 
-customers_df = pd.read_csv(DATA_DIR / "customers.csv")
-txns_df = pd.read_csv(DATA_DIR / "transactions.csv")
-loans_df = pd.read_csv(DATA_DIR / "loans.csv")
-kyc_df = pd.read_csv(DATA_DIR / "kyc_aml.csv")
-portfolios_df = pd.read_csv(DATA_DIR / "portfolios.csv")
-churn_df = pd.read_csv(DATA_DIR / "churn.csv")
 
-print(f"Loaded {len(customers_df)} customers, {len(txns_df)} transactions, {len(loans_df)} loans")
+def _load_data():
+    global customers_df, txns_df, loans_df, kyc_df, portfolios_df, churn_df
+    if customers_df is not None:
+        return
+    print("Loading data...")
+    # Load with optimized dtypes to save memory
+    customers_df = pd.read_csv(DATA_DIR / "customers.csv")
+    txns_df = pd.read_csv(DATA_DIR / "transactions.csv", dtype={
+        'txn_type': 'category', 'channel': 'category',
+        'merchant': 'category', 'customer_id': 'string', 'txn_id': 'string'
+    })
+    loans_df = pd.read_csv(DATA_DIR / "loans.csv", dtype={
+        'loan_type': 'category', 'loan_purpose': 'category',
+        'employment_type': 'category', 'segment': 'category',
+        'customer_id': 'string', 'loan_id': 'string'
+    })
+    kyc_df = pd.read_csv(DATA_DIR / "kyc_aml.csv", dtype={
+        'entity_type': 'category', 'country': 'category',
+        'doc_type': 'category', 'ownership_transparency': 'category',
+        'risk_category': 'category', 'entity_id': 'string'
+    })
+    portfolios_df = pd.read_csv(DATA_DIR / "portfolios.csv")
+    churn_df = pd.read_csv(DATA_DIR / "churn.csv", dtype={
+        'gender': 'category', 'segment': 'category',
+        'employment_type': 'category', 'customer_id': 'string'
+    })
+    gc.collect()
+    print(f"Data loaded: {len(customers_df)} customers, {len(txns_df)} txns, {len(loans_df)} loans")
 
 
 def encode_input(df, feature_list, encoder_prefix, encoders):
@@ -71,6 +111,8 @@ def index():
 
 @app.route('/api/dashboard')
 def dashboard():
+    _load_models()
+    _load_data()
     total_customers = len(customers_df)
     total_txns = len(txns_df)
     fraud_count = int(txns_df['is_fraud'].sum())
@@ -93,7 +135,7 @@ def dashboard():
         'loan_type_distribution': loans_df['loan_type'].value_counts().to_dict(),
         'fraud_by_type': txns_df.groupby('txn_type')['is_fraud'].sum().to_dict(),
         'risk_category_distribution': kyc_df['risk_category'].value_counts().to_dict(),
-        'model_metrics': model_metrics,
+        'model_metrics': _model_metrics,
     })
 
 
@@ -104,6 +146,7 @@ def credit_risk_page():
 
 @app.route('/api/credit-risk/predict', methods=['POST'])
 def credit_risk_predict():
+    _load_models()
     data = request.json
     input_data = pd.DataFrame([{
         'loan_amount': float(data['loan_amount']),
@@ -122,9 +165,9 @@ def credit_risk_predict():
         'loan_type': data['loan_type'],
         'segment': data.get('segment', 'Retail'),
     }])
-    input_encoded = encode_input(input_data, credit_features, 'credit', encoders)
-    input_encoded = input_encoded[credit_features]
-    proba = credit_model.predict_proba(input_encoded)[0]
+    input_encoded = encode_input(input_data, _credit_features, 'credit', _encoders)
+    input_encoded = input_encoded[_credit_features]
+    proba = _credit_model.predict_proba(input_encoded)[0]
     default_prob = float(proba[1])
     prediction = int(default_prob > 0.5)
     if default_prob < 0.05:
@@ -137,7 +180,7 @@ def credit_risk_predict():
         grade, recommendation = 'D', 'REVIEW — Manual underwriting recommended'
     else:
         grade, recommendation = 'E', 'DECLINE — High default probability'
-    fi_list = model_metrics['credit_risk']['feature_importance'][:5]
+    fi_list = _model_metrics['credit_risk']['feature_importance'][:5]
     return jsonify({
         'default_probability': round(default_prob * 100, 2),
         'prediction': 'DEFAULT' if prediction else 'NO DEFAULT',
@@ -154,6 +197,7 @@ def credit_risk_predict():
 
 @app.route('/api/credit-risk/sample')
 def credit_risk_sample():
+    _load_data()
     sample = loans_df.sample(1).iloc[0]
     return jsonify({
         'loan_amount': int(sample['loan_amount']),
@@ -162,9 +206,9 @@ def credit_risk_sample():
         'age': int(sample['age']),
         'annual_income': int(sample['annual_income']),
         'credit_bureau_score': int(sample['credit_bureau_score']),
-        'employment_type': sample['employment_type'],
-        'loan_type': sample['loan_type'],
-        'segment': sample['segment'],
+        'employment_type': str(sample['employment_type']),
+        'loan_type': str(sample['loan_type']),
+        'segment': str(sample['segment']),
         'actual_default': int(sample['default']),
     })
 
@@ -176,6 +220,7 @@ def fraud_page():
 
 @app.route('/api/fraud/predict', methods=['POST'])
 def fraud_predict():
+    _load_models()
     data = request.json
     input_data = pd.DataFrame([{
         'amount': float(data['amount']),
@@ -190,9 +235,9 @@ def fraud_predict():
         'is_weekend': int(1 if int(data['day_of_week']) >= 5 else 0),
         'is_high_amount': int(1 if float(data['amount']) > 50000 else 0),
     }])
-    input_encoded = encode_input(input_data, fraud_features, 'fraud', encoders)
-    input_encoded = input_encoded[fraud_features]
-    proba = fraud_model.predict_proba(input_encoded)[0]
+    input_encoded = encode_input(input_data, _fraud_features, 'fraud', _encoders)
+    input_encoded = input_encoded[_fraud_features]
+    proba = _fraud_model.predict_proba(input_encoded)[0]
     fraud_prob = float(proba[1])
     prediction = int(fraud_prob > 0.5)
     if fraud_prob > 0.7:
@@ -218,12 +263,13 @@ def fraud_predict():
 
 @app.route('/api/fraud/sample')
 def fraud_sample():
+    _load_data()
     sample = txns_df.sample(1).iloc[0]
     return jsonify({
         'amount': float(sample['amount']),
-        'txn_type': sample['txn_type'],
-        'channel': sample['channel'],
-        'merchant': sample['merchant'],
+        'txn_type': str(sample['txn_type']),
+        'channel': str(sample['channel']),
+        'merchant': str(sample['merchant']),
         'hour_of_day': int(sample['hour_of_day']),
         'day_of_week': int(sample['day_of_week']),
         'is_international': int(sample['is_international']),
@@ -238,6 +284,7 @@ def kyc_page():
 
 @app.route('/api/kyc/predict', methods=['POST'])
 def kyc_predict():
+    _load_models()
     data = request.json
     risk_countries = {'Cyprus', 'BVI', 'Panama', 'Seychelles', 'Mauritius', 'Cayman Islands'}
     input_data = pd.DataFrame([{
@@ -255,9 +302,9 @@ def kyc_predict():
         'txn_volume_log': np.log1p(float(data['txn_volume_monthly'])),
         'high_risk_country': int(1 if data['country'] in risk_countries else 0),
     }])
-    input_encoded = encode_input(input_data, kyc_features, 'kyc', encoders)
-    input_encoded = input_encoded[kyc_features]
-    proba = kyc_model.predict_proba(input_encoded)[0]
+    input_encoded = encode_input(input_data, _kyc_features, 'kyc', _encoders)
+    input_encoded = input_encoded[_kyc_features]
+    proba = _kyc_model.predict_proba(input_encoded)[0]
     alert_prob = float(proba[1])
     prediction = int(alert_prob > 0.5)
     risk_score = (
@@ -299,11 +346,12 @@ def kyc_predict():
 
 @app.route('/api/kyc/sample')
 def kyc_sample():
+    _load_data()
     sample = kyc_df.sample(1).iloc[0]
     return jsonify({
-        'entity_type': sample['entity_type'],
-        'country': sample['country'],
-        'doc_type': sample['doc_type'],
+        'entity_type': str(sample['entity_type']),
+        'country': str(sample['country']),
+        'doc_type': str(sample['doc_type']),
         'doc_verified': int(sample['doc_verified']),
         'num_bank_accounts': int(sample['num_bank_accounts']),
         'txn_volume_monthly': float(sample['txn_volume_monthly']),
@@ -311,7 +359,7 @@ def kyc_sample():
         'has_sanction_link': int(sample['has_sanction_link']),
         'adverse_media_hits': int(sample['adverse_media_hits']),
         'years_in_business': int(sample['years_in_business']),
-        'ownership_transparency': sample['ownership_transparency'],
+        'ownership_transparency': str(sample['ownership_transparency']),
         'actual_alert': int(sample['alert_flag']),
     })
 
@@ -323,6 +371,7 @@ def portfolio_page():
 
 @app.route('/api/portfolio/optimize', methods=['POST'])
 def portfolio_optimize():
+    _load_models()
     data = request.json
     risk_profile = data['risk_profile']
     horizon = int(data.get('investment_horizon', 5))
@@ -355,9 +404,9 @@ def portfolio_optimize():
             alloc[eq] = round(alloc[eq] * 1.15, 4)
         total = sum(alloc.values())
         alloc = {k: round(v/total, 4) for k, v in alloc.items()}
-    ret = sum(alloc[a] * asset_stats[a][0] for a in alloc)
-    vol = np.sqrt(sum((alloc[a] * asset_stats[a][1])**2 for a in alloc) +
-                  2 * sum(alloc[a] * alloc[b] * asset_stats[a][1] * asset_stats[b][1] * 0.3
+    ret = sum(alloc[a] * _asset_stats[a][0] for a in alloc)
+    vol = np.sqrt(sum((alloc[a] * _asset_stats[a][1])**2 for a in alloc) +
+                  2 * sum(alloc[a] * alloc[b] * _asset_stats[a][1] * _asset_stats[b][1] * 0.3
                           for i, a in enumerate(alloc) for b in list(alloc)[i+1:]))
     sharpe = (ret - 0.035) / vol if vol > 0 else 0
     allocation_amounts = {k: round(v * capital) for k, v in alloc.items()}
@@ -380,6 +429,7 @@ def churn_page():
 
 @app.route('/api/churn/predict', methods=['POST'])
 def churn_predict():
+    _load_models()
     data = request.json
     input_data = pd.DataFrame([{
         'age': int(data['age']),
@@ -396,9 +446,9 @@ def churn_predict():
         'segment': data.get('segment', 'Retail'),
         'employment_type': data.get('employment_type', 'Salaried'),
     }])
-    input_encoded = encode_input(input_data, churn_features, 'churn', encoders)
-    input_encoded = input_encoded[churn_features]
-    proba = churn_model.predict_proba(input_encoded)[0]
+    input_encoded = encode_input(input_data, _churn_features, 'churn', _encoders)
+    input_encoded = input_encoded[_churn_features]
+    proba = _churn_model.predict_proba(input_encoded)[0]
     churn_prob = float(proba[1])
     prediction = int(churn_prob > 0.5)
     if churn_prob > 0.5:
@@ -424,6 +474,7 @@ def churn_predict():
 
 @app.route('/api/churn/sample')
 def churn_sample():
+    _load_data()
     sample = churn_df.sample(1).iloc[0]
     return jsonify({
         'age': int(sample['age']),
@@ -435,19 +486,19 @@ def churn_sample():
         'complaints_last_year': int(sample['complaints_last_year']),
         'num_branch_visits': int(sample['num_branch_visits']),
         'credit_card_usage': int(sample['credit_card_usage']),
-        'gender': sample['gender'],
-        'segment': sample['segment'],
-        'employment_type': sample['employment_type'],
+        'gender': str(sample['gender']),
+        'segment': str(sample['segment']),
+        'employment_type': str(sample['employment_type']),
         'actual_churn': int(sample['churn']),
     })
 
 
 @app.route('/models')
 def models_page():
-    return render_template('models.html', metrics=model_metrics)
+    _load_models()
+    return render_template('models.html', metrics=_model_metrics)
 
 
-# ─── Production-ready entry point ────────────────────────────────
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     debug_mode = os.environ.get('FLASK_DEBUG', '0') == '1'
