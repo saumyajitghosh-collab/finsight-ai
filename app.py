@@ -15,6 +15,13 @@ from flask import Flask, request, jsonify
 
 app = Flask(__name__)
 
+@app.after_request
+def set_cache_headers(resp):
+    resp.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+    resp.headers['Pragma'] = 'no-cache'
+    resp.headers['Expires'] = '0'
+    return resp
+
 # ============================================================================
 # MODULE 1: QUANTUM PERSONNEL SECURITIES (QPS)
 # Based on: "Quantum Personnel Securities (QPS): A Theoretical Framework
@@ -339,6 +346,27 @@ class QPSEngine:
                 'strategies': ['Expansion', 'Hold', 'Conservative', 'Strategic Pivot'],
                 'amplitudes': [0.3, 0.25, 0.25, 0.2],
                 'biases': [],  # No bias — ideal governance
+                                'market': 'normal',
+            },
+            'merger_acquisition': {
+                'description': 'Merger decision: CEO overconfidence meets board caution',
+                'strategies': ['Accept Offer', 'Reject', 'Counter-Bid', 'Delay'],
+                'amplitudes': [0.25, 0.3, 0.25, 0.2],
+                'biases': [('overconfidence', 0.35), ('anchoring', 0.25)],
+                'market': 'bull',
+            },
+            'tech_disruption': {
+                'description': 'Technology disruption response: innovation vs survival tension',
+                'strategies': ['Invest Heavily', 'Partner', 'Acquire Startup', 'Status Quo'],
+                'amplitudes': [0.3, 0.25, 0.2, 0.25],
+                'biases': [('confirmation', 0.4), ('overconfidence', 0.2)],
+                'market': 'normal',
+            },
+            'succession_uncertainty': {
+                'description': 'Leadership succession: uncertainty during CEO transition',
+                'strategies': ['Continuity', 'Strategic Shift', 'Restructure', 'Status Quo'],
+                'amplitudes': [0.35, 0.2, 0.15, 0.3],
+                'biases': [('loss_aversion', 0.35), ('groupthink', 0.2)],
                 'market': 'normal',
             },
         }
@@ -631,8 +659,9 @@ class CSLEngine:
         agents = []
 
         # 1. Cost Agent
-        fee_rates = {'Euroclear': 0.0002, 'DTCC': 0.00015, 'CBL': 0.00025, 'Internal': 0.0001}
-        routes = ['Euroclear', 'DTCC', 'CBL', 'Internal']
+        fee_rates = {'Euroclear': 0.0002, 'DTCC': 0.00015, 'CBL': 0.00025, 'Internal': 0.0001,
+                     'SWIFT': 0.0003, 'CLS_Bank': 0.00018, 'Chainlink': 0.00022, 'Tokenized': 0.00008}
+        routes = ['Euroclear', 'DTCC', 'CBL', 'Internal', 'SWIFT', 'CLS_Bank', 'Chainlink', 'Tokenized']
         cost_estimates = {r: trade_value * fee_rates[r] for r in routes}
         best_cost_route = min(cost_estimates, key=cost_estimates.get)
         fx_cost = trade_value * 0.0003 if currency != 'USD' else 0
@@ -646,7 +675,8 @@ class CSLEngine:
         })
 
         # 2. Liquidity Agent
-        liquidity_available = {'Euroclear': 5000000, 'DTCC': 8000000, 'CBL': 3000000, 'Internal': 10000000}
+        liquidity_available = {'Euroclear': 5000000, 'DTCC': 8000000, 'CBL': 3000000, 'Internal': 10000000,
+                                 'SWIFT': 2000000, 'CLS_Bank': 7000000, 'Chainlink': 4000000, 'Tokenized': 15000000}
         feasible = {r: liquidity_available[r] >= trade_value for r in routes}
         agents.append({
             'name': 'Liquidity Agent', 'status': 'completed',
@@ -675,7 +705,7 @@ class CSLEngine:
         })
 
         # 4. Timeliness Agent
-        cutoff_hours = {'Euroclear': 14, 'DTCC': 16, 'CBL': 12, 'Internal': 18}
+        cutoff_hours = {'Euroclear': 14, 'DTCC': 16, 'CBL': 12, 'Internal': 18, 'SWIFT': 15, 'CLS_Bank': 17, 'Chainlink': 20, 'Tokenized': 22}
         current_hour = trade.get('current_hour', 13)
         feasible_cutoff = {r: cutoff_hours[r] > current_hour for r in routes}
         agents.append({
@@ -837,6 +867,16 @@ class CSLEngine:
                 'value': 8000000, 'currency': 'USD', 'counterparty': 'Goldman',
                 'settlement_date': 'T+2', 'market': 'NYSE', 'current_hour': 15,
             },
+            'emerging_market_bond': {
+                'description': 'Emerging market bond: INR-denominated sovereign bond settling via Tokenized route',
+                'value': 15000000, 'currency': 'USD', 'counterparty': 'HDFC',
+                'settlement_date': 'T+2', 'market': 'NSE', 'current_hour': 11,
+            },
+            'cross_asset_deriv': {
+                'description': 'Cross-asset derivative: equity-linked note settling across CSDs and CCPs',
+                'value': 6000000, 'currency': 'EUR', 'counterparty': 'Deutsche Bank',
+                'settlement_date': 'T+1', 'market': 'EUREX', 'current_hour': 14,
+            },
         }
 
         if scenario_name not in scenarios:
@@ -854,6 +894,111 @@ class CSLEngine:
 # Based on: "The Gate Symphony: Deterministic Logic-Gate Architectures
 #            for Constraining Autonomy in Agentic AI Systems"
 # ============================================================================
+
+
+
+# ============================================================================
+# RL Q-LEARNING ENGINE FOR CSL
+# ============================================================================
+
+class CSLQLearning:
+    """
+    Q-learning engine for CSL settlement routing.
+    States: trade features (value bracket, currency, market, hour)
+    Actions: settlement routes
+    Reward: negative of global objective function
+    """
+    ROUTES = ['Euroclear', 'DTCC', 'CBL', 'Internal', 'SWIFT', 'CLS_Bank', 'Chainlink', 'Tokenized']
+
+    ROUTE_BASE_COST = {
+        'Euroclear': 0.0002, 'DTCC': 0.00015, 'CBL': 0.00025, 'Internal': 0.0001,
+        'SWIFT': 0.0003, 'CLS_Bank': 0.00018, 'Chainlink': 0.00022, 'Tokenized': 0.00008,
+    }
+    ROUTE_RISK = {
+        'Euroclear': 0.05, 'DTCC': 0.04, 'CBL': 0.07, 'Internal': 0.02,
+        'SWIFT': 0.08, 'CLS_Bank': 0.03, 'Chainlink': 0.06, 'Tokenized': 0.04,
+    }
+    ROUTE_SPEED = {
+        'Euroclear': 0.85, 'DTCC': 0.90, 'CBL': 0.75, 'Internal': 0.95,
+        'SWIFT': 0.70, 'CLS_Bank': 0.88, 'Chainlink': 0.80, 'Tokenized': 0.98,
+    }
+
+    @staticmethod
+    def train(episodes=500, alpha=0.1, gamma=0.95, epsilon_start=1.0, epsilon_end=0.05):
+        import random
+        q_table = {}
+        history = []
+        epsilon = epsilon_start
+        epsilon_decay = (epsilon_start - epsilon_end) / episodes
+
+        def make_state(trade):
+            val_bracket = min(int(trade['value'] / 2000000), 9)
+            currencies = ['USD', 'EUR', 'SGD', 'GBP']
+            curr_idx = currencies.index(trade.get('currency', 'USD')) if trade.get('currency', 'USD') in currencies else 0
+            markets = ['SGX', 'NYSE', 'LSE', 'OTC', 'HKEX', 'TSE']
+            mkt_idx = markets.index(trade.get('market', 'OTC')) if trade.get('market', 'OTC') in markets else 3
+            hour_bracket = int(trade.get('current_hour', 12) / 4)
+            return (val_bracket, curr_idx, mkt_idx, hour_bracket)
+
+        def get_reward(trade, route):
+            val = trade['value']
+            cost = val * CSLQLearning.ROUTE_BASE_COST[route]
+            risk = CSLQLearning.ROUTE_RISK[route]
+            speed = CSLQLearning.ROUTE_SPEED[route]
+            objective = cost + risk * val * 0.01 + (1 - speed) * val * 0.005
+            return -objective
+
+        def get_q(state):
+            if state not in q_table:
+                q_table[state] = {r: 0.0 for r in CSLQLearning.ROUTES}
+            return q_table[state]
+
+        training_trades = []
+        for _ in range(episodes):
+            val = random.choice([1000000, 3000000, 5000000, 8000000, 10000000, 15000000, 20000000])
+            curr = random.choice(['USD', 'EUR', 'SGD', 'GBP'])
+            mkt = random.choice(['SGX', 'NYSE', 'LSE', 'OTC', 'HKEX', 'TSE'])
+            hr = random.randint(8, 18)
+            training_trades.append({'value': val, 'currency': curr, 'market': mkt, 'current_hour': hr})
+
+        cumulative_reward = 0
+        for ep in range(episodes):
+            trade = training_trades[ep]
+            state = make_state(trade)
+            q = get_q(state)
+            if random.random() < epsilon:
+                action = random.choice(CSLQLearning.ROUTES)
+            else:
+                action = max(q, key=q.get)
+            reward = get_reward(trade, action)
+            cumulative_reward += reward
+            next_q = get_q(state)
+            max_next = max(next_q.values())
+            q[action] = q[action] + alpha * (reward + gamma * max_next - q[action])
+            epsilon = max(epsilon_end, epsilon - epsilon_decay)
+            if ep % 10 == 0 or ep == episodes - 1:
+                avg_reward = cumulative_reward / max(1, ep + 1)
+                ref_trade = {'value': 5000000, 'currency': 'USD', 'market': 'OTC', 'current_hour': 12}
+                ref_state = make_state(ref_trade)
+                ref_q = get_q(ref_state)
+                best_route = max(ref_q, key=ref_q.get)
+                history.append({
+                    'episode': ep,
+                    'avg_reward': round(avg_reward, 2),
+                    'epsilon': round(epsilon, 4),
+                    'best_route': best_route,
+                    'q_values': {k: round(v, 2) for k, v in ref_q.items()},
+                })
+
+        return {
+            'episodes': episodes,
+            'alpha': alpha,
+            'gamma': gamma,
+            'q_table_size': len(q_table),
+            'convergence_history': history,
+            'final_q_values': history[-1]['q_values'] if history else {},
+            'optimal_route': history[-1]['best_route'] if history else 'Internal',
+        }
 
 class GateSymphony:
     """
@@ -1169,6 +1314,40 @@ class GateSymphony:
                     {'name': 'Agent Check', 'type': 'AND', 'inputs': ['agent_proposal', 'agent_confidence', 'agent_reasoning']},
                 ],
             },
+            'or_redundant_channels': {
+                'description': 'OR gate: settlement proceeds via either primary OR backup channel',
+                'action': 'Execute Settlement',
+                'consequence_class': 'C2',
+                'requested_level': 'BOUNDED_EXECUTE',
+                'signals': {
+                    'primary_channel': 0, 'backup_channel': 1, 'policy_ok': 1, 'human_ok': 1
+                },
+                'provenance': {
+                    'primary_channel': 'sigma_S', 'backup_channel': 'sigma_S',
+                    'policy_ok': 'sigma_S', 'human_ok': 'sigma_H'
+                },
+                'gates': [
+                    {'name': 'Channel Redundancy', 'type': 'OR', 'inputs': ['primary_channel', 'backup_channel']},
+                    {'name': 'Authorization', 'type': 'AND', 'inputs': ['Channel Redundancy', 'policy_ok', 'human_ok']},
+                ],
+            },
+            'nand_emergency_halt': {
+                'description': 'NAND emergency halt: systemic risk detected triggers circuit breaker',
+                'action': 'Execute Batch Settlement',
+                'consequence_class': 'C3',
+                'requested_level': 'EXECUTE',
+                'signals': {
+                    'systemic_risk': 1, 'market_stress': 1, 'human_override': 0, 'policy_ok': 1
+                },
+                'provenance': {
+                    'systemic_risk': 'sigma_S', 'market_stress': 'sigma_S',
+                    'human_override': 'sigma_H', 'policy_ok': 'sigma_S'
+                },
+                'gates': [
+                    {'name': 'Emergency Brake', 'type': 'NAND', 'inputs': ['systemic_risk', 'market_stress']},
+                    {'name': 'Override Check', 'type': 'AND', 'inputs': ['Emergency Brake', 'human_override', 'policy_ok']},
+                ],
+            },
         }
 
         if scenario_name not in scenarios:
@@ -1308,6 +1487,16 @@ def api_gate_truth_table(gate_type):
     return jsonify({'error': 'Unknown gate type'}), 400
 
 
+@app.route('/api/csl/rl-train')
+def api_csl_rl_train():
+    try:
+        episodes = int(request.args.get('episodes', 500))
+        result = CSLQLearning.train(episodes=episodes)
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 400
+
+
 # ============================================================================
 # HTML PAGES
 # ============================================================================
@@ -1408,12 +1597,12 @@ table th{color:var(--accent);font-weight:600;font-size:0.75rem;text-transform:up
 # ============================================================================
 
 def page(title, content, active=''):
-    nav_html = '<div class="sidebar"><div class="sidebar-header"><h1>FinSight AI</h1><div class="version">v3.0 COGNITIVE FINANCE</div></div>'
+    nav_html = '<div class="sidebar"><div class="sidebar-header"><h1>FinSight AI</h1><div class="version">v3.2 COGNITIVE FINANCE</div></div>'
     sections = [
         ('Overview', [('/', 'Dashboard', 'overview')]),
         ('Paper 1: QPS', [('/qps', 'Quantum Personnel Securities', 'qps'), ('/qps/bias', 'Bias Operators', 'qps-bias'), ('/qps/scenarios', 'Simulation Scenarios', 'qps-scen')]),
         ('Paper 2: TCC', [('/tcc', 'Cognitive Capital Index', 'tcc'), ('/tcc/valuation', 'Token Valuation', 'tcc-val'), ('/tcc/scenarios', 'Market Scenarios', 'tcc-scen')]),
-        ('Paper 3: CSL', [('/csl', 'Settlement Layer', 'csl'), ('/csl/scenarios', 'Settlement Scenarios', 'csl-scen')]),
+        ('Paper 3: CSL', [('/csl', 'Settlement Layer', 'csl'), ('/csl/rl', 'RL Training', 'csl-rl'), ('/csl/scenarios', 'Settlement Scenarios', 'csl-scen')]),
         ('Paper 4: Gates', [('/gate', 'Gate Symphony', 'gate'), ('/gate/truth-tables', 'Truth Tables', 'gate-tt'), ('/gate/scenarios', 'Gate Scenarios', 'gate-scen')]),
     ]
     for section_name, items in sections:
@@ -1452,7 +1641,7 @@ def page_dashboard():
     c += '<div class="stat-grid">'
     c += '<div class="stat-card"><div class="value">4</div><div class="label">Research Modules</div></div>'
     c += '<div class="stat-card"><div class="value">13</div><div class="label">AI Agents</div></div>'
-    c += '<div class="stat-card"><div class="value">19</div><div class="label">Simulation Scenarios</div></div>'
+    c += '<div class="stat-card"><div class="value">26</div><div class="label">Simulation Scenarios</div></div>'
     c += '<div class="stat-card"><div class="value">302</div><div class="label">Research Pages</div></div>'
     c += '</div>'
     # Architecture flow
@@ -1493,6 +1682,15 @@ def page_qps():
     c += '<div class="chart-container" id="chartBox" style="display:none"><canvas id="stateChart"></canvas></div>'
     c += '<script>'
     c += """function submitQPS(e){e.preventDefault();var f=new FormData(e.target);var strategies=[f.get('s1'),f.get('s2'),f.get('s3'),f.get('s4')].filter(function(s){return s});var amplitudes=[parseFloat(f.get('a1')),parseFloat(f.get('a2')),parseFloat(f.get('a3')),parseFloat(f.get('a4'))].filter(function(a){return!isNaN(a)});fetch('/api/qps/state',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({strategies:strategies,amplitudes:amplitudes})}).then(function(r){return r.json()}).then(function(r){document.getElementById('result').classList.add('show');var html='<div class="result-label">Dominant Strategy</div><div class="result-value">'+r.max_strategy+'</div>';html+='<p>Probability: '+(r.max_probability*100).toFixed(1)+'%</p>';html+='<p>Entropy: '+r.entropy.toFixed(4)+'</p>';html+='<table><tr><th>Strategy</th><th>Probability</th></tr>';Object.entries(r.probabilities).forEach(function(e){html+='<tr><td>'+e[0]+'</td><td>'+(e[1]*100).toFixed(2)+'%</td></tr>'});html+='</table>';document.getElementById('qpsDetails').innerHTML=html;drawStateChart(r)})}var stateChart=null;function drawStateChart(r){var ctx=document.getElementById('stateChart');document.getElementById('chartBox').style.display='block';if(stateChart)stateChart.destroy();stateChart=new Chart(ctx,{type:'bar',data:{labels:Object.keys(r.probabilities),datasets:[{label:'Probability',data:Object.values(r.probabilities),backgroundColor:'#7c4dff'}]},options:{responsive:true,plugins:{title:{display:true,text:'Strategy Probabilities'}},scales:{y:{beginAtZero:true,max:1}}}})}"""
+    c += '</script>'
+    c += '<div class="card"><h3>Bloch Sphere Visualization</h3>'
+    c += '<p>The Bloch sphere represents the quantum state of leadership. Each strategy maps to a point on the sphere surface. The dominant strategy is highlighted.</p>'
+    c += '<div style="display:flex;justify-content:center;margin:15px 0">'
+    c += '<canvas id="blochSphere" width="320" height="320" style="border:1px solid rgba(255,255,255,0.1);border-radius:50%"></canvas>'
+    c += '</div>'
+    c += '<div id="blochLabels" style="text-align:center;font-size:0.85rem;color:var(--text-dim)"></div>'
+    c += '<script>'
+    c += """function drawBloch(){var c=document.getElementById('blochSphere');if(!c)return;var ctx=c.getContext('2d');var cx=160,cy=160,r=120;ctx.clearRect(0,0,320,320);ctx.strokeStyle='rgba(255,255,255,0.15)';ctx.lineWidth=1;ctx.beginPath();ctx.arc(cx,cy,r,0,2*Math.PI);ctx.stroke();ctx.beginPath();ctx.ellipse(cx,cy,r,r*0.3,0,0,2*Math.PI);ctx.stroke();ctx.beginPath();ctx.ellipse(cx,cy,r*0.3,r,0,0,2*Math.PI);ctx.stroke();ctx.strokeStyle='rgba(255,255,255,0.3)';ctx.beginPath();ctx.moveTo(cx-r-10,cy);ctx.lineTo(cx+r+10,cy);ctx.moveTo(cx,cy-r-10);ctx.lineTo(cx,cy+r+10);ctx.stroke();ctx.fillStyle='rgba(255,255,255,0.5)';ctx.font='10px sans-serif';ctx.fillText('|0>',cx+5,cy-r-5);ctx.fillText('|1>',cx+5,cy+r+12);ctx.fillText('x',cx+r+12,cy+3);var strategies=document.querySelectorAll('#qpsDetails table tr');var colors=['#7c4dff','#ff5252','#00e676','#ffab00'];var labels=[];for(var i=1;i<strategies.length&&i<=4;i++){var angle=(i-1)*Math.PI*0.5+0.3;var px=cx+r*0.7*Math.cos(angle);var py=cy-r*0.7*Math.sin(angle);ctx.fillStyle=colors[i-1];ctx.beginPath();ctx.arc(px,py,8,0,2*Math.PI);ctx.fill();var cells=strategies[i].querySelectorAll('td');if(cells.length>=2){labels.push({name:cells[0].textContent,prob:cells[1].textContent,color:colors[i-1]})}}var labelHtml='';labels.forEach(function(l){labelHtml+='<span style=color:'+l.color+'>&#9679;</span> '+l.name+': '+l.prob+' &nbsp; '});var bl=document.getElementById('blochLabels');if(bl)bl.innerHTML=labelHtml}setTimeout(drawBloch,500)"""
     c += '</script>'
     return page('Quantum Personnel Securities', c, 'qps')
 
@@ -1627,6 +1825,21 @@ def page_csl():
     c += '</script>'
     return page('Cognitive Settlement Layer', c, 'csl')
 
+@app.route('/csl/rl')
+def page_csl_rl():
+    c = '<p>The Q-Learning engine trains a reinforcement learning agent to optimize settlement routing. Over 500 episodes, the agent learns which routes minimize the global objective function (cost + risk + timeliness + exceptions).</p>'
+    c += '<div class="info-banner"><strong>Q-Learning:</strong> State = (value bracket, currency, market, hour). Actions = 8 settlement routes. Reward = negative objective function. Uses epsilon-greedy exploration with decay.</div>'
+    c += '<div class="card"><h3>Train RL Agent</h3>'
+    c += '<div class="form-group"><label>Episodes</label><input type="number" id="rlEpisodes" value="500" step="50" min="100" max="5000"></div>'
+    c += '<p><button class="btn" onclick="trainRL()">Train Agent</button></p></div>'
+    c += '<div id="rlResult"></div>'
+    c += '<div class="chart-container" id="rlChartBox" style="display:none"><canvas id="rlConvergenceChart"></canvas></div>'
+    c += '<script>'
+    c += """function trainRL(){var eps=parseInt(document.getElementById('rlEpisodes').value)||500;fetch('/api/csl/rl-train?episodes='+eps).then(function(r){return r.json()}).then(function(r){var html='<div class="card"><h3>Training Complete</h3>';html+='<div class="result-value">Optimal Route: '+r.optimal_route+'</div>';html+='<table><tr><th>Metric</th><th>Value</th></tr>';html+='<tr><td>Episodes</td><td>'+r.episodes+'</td></tr>';html+='<tr><td>Learning Rate</td><td>'+r.alpha+'</td></tr>';html+='<tr><td>Discount</td><td>'+r.gamma+'</td></tr>';html+='<tr><td>Q-Table Size</td><td>'+r.q_table_size+' states</td></tr></table>';html+='<h3 style="margin-top:15px">Final Q-Values</h3><table><tr><th>Route</th><th>Q-Value</th></tr>';Object.entries(r.final_q_values).forEach(function(e){html+='<tr><td>'+e[0]+'</td><td>'+e[1].toFixed(2)+'</td></tr>'});html+='</table></div>';document.getElementById('rlResult').innerHTML=html;drawRLChart(r)})}var rlChart=null;function drawRLChart(r){var ctx=document.getElementById('rlConvergenceChart');document.getElementById('rlChartBox').style.display='block';if(rlChart)rlChart.destroy();var hist=r.convergence_history;rlChart=new Chart(ctx,{type:'line',data:{labels:hist.map(function(h){return h.episode}),datasets:[{label:'Avg Reward',data:hist.map(function(h){return h.avg_reward}),borderColor:'#00bcd4',backgroundColor:'rgba(0,188,212,0.2)',fill:true,yAxisID:'y'},{label:'Epsilon',data:hist.map(function(h){return h.epsilon}),borderColor:'#ffab00',borderDash:[5,5],yAxisID:'y1'}]},options:{responsive:true,plugins:{title:{display:true,text:'Q-Learning Convergence'}},scales:{y:{position:'left',title:{display:true,text:'Avg Reward'}},y1:{position:'right',title:{display:true,text:'Epsilon'},min:0,max:1,grid:{drawOnChartArea:false}}}}})}"""
+    c += '</script>'
+    return page('CSL Reinforcement Learning', c, 'csl-rl')
+
+
 @app.route('/csl/scenarios')
 def page_csl_scen():
     c = '<p>Predefined settlement scenarios from the CSL paper, covering cross-border equity, repo/SBL, multi-currency FX, and high-stress conditions. Each scenario shows full 8-agent analysis with Pareto frontier.</p>'
@@ -1714,7 +1927,9 @@ def page_gate_scen():
         ('ssi_routing_blocked', 'SSI Routing &mdash; Missing Human Approval'),
         ('nand_circuit_breaker', 'NAND Circuit Breaker &mdash; Fraud Pattern'),
         ('xor_mode_conflict', 'XOR &mdash; Mode Conflict Detection'),
-        ('agent_only_attack', 'Agent-Only Attack &mdash; NAP Test'),
+        ('agent_only_attack', 'Agent-Only Attack — NAP Test'),
+        ('or_redundant_channels', 'OR: Redundant Channels'),
+        ('nand_emergency_halt', 'NAND: Emergency Halt'),
     ]
     for name, label in scenarios:
         c += '<a class="scenario-btn" href="#" onclick="runG(\'' + name + '\');return false">' + label + '</a>'
