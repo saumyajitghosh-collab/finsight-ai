@@ -1370,7 +1370,42 @@ table th{color:var(--accent);font-weight:600;font-size:0.75rem;text-transform:up
 .scenario-btn{display:inline-block;background:var(--card-light);border:1px solid var(--border);color:var(--text);padding:8px 16px;border-radius:8px;font-size:0.8rem;cursor:pointer;margin:4px;text-decoration:none}
 .scenario-btn:hover{border-color:var(--accent);color:var(--accent)}
 @media(max-width:768px){.sidebar{display:none}.main{margin-left:0;padding:15px}}
+
+
+/* === ENHANCED V3 STYLES === */
+.chart-container{background:var(--card-bg);border-radius:12px;padding:20px;margin:15px 0;border:1px solid rgba(255,255,255,0.08)}
+.chart-container canvas{max-height:350px}
+.chart-grid{display:grid;grid-template-columns:1fr 1fr;gap:15px;margin:15px 0}
+@media(max-width:768px){.chart-grid{grid-template-columns:1fr}}
+.paper-card{background:linear-gradient(135deg,rgba(26,35,126,0.15),rgba(0,188,212,0.08));border:1px solid rgba(0,188,212,0.2);border-radius:12px;padding:20px;margin:10px 0;transition:transform 0.2s}
+.paper-card:hover{transform:translateY(-2px);border-color:var(--accent)}
+.paper-card h4{color:var(--accent);margin:0 0 8px 0;font-size:1rem}
+.paper-card .paper-meta{font-size:0.8rem;color:var(--text-dim);margin-bottom:8px}
+.paper-card .paper-innovation{font-size:0.85rem;color:var(--text);margin-top:8px;padding-top:8px;border-top:1px solid rgba(255,255,255,0.08)}
+.gate-circuit{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:15px 0}
+.gate-node{background:var(--card-bg);border:2px solid var(--primary-light);border-radius:8px;padding:10px 15px;min-width:120px;text-align:center}
+.gate-node.proceed{border-color:var(--success);background:rgba(0,230,118,0.1)}
+.gate-node.blocked{border-color:var(--danger);background:rgba(255,82,82,0.1)}
+.gate-node.violation{border-color:#ff9800;background:rgba(255,152,0,0.1)}
+.gate-arrow{color:var(--text-dim);font-size:1.2rem}
+.prov-tag{display:inline-block;font-size:0.7rem;padding:2px 6px;border-radius:4px;margin:2px}
+.prov-sigma-a{background:rgba(255,82,82,0.2);color:#ff8a80}
+.prov-sigma-s{background:rgba(0,188,212,0.2);color:#80deea}
+.prov-sigma-h{background:rgba(0,230,118,0.2);color:#69f0ae}
+.mermaid-section{background:rgba(0,0,0,0.3);border-radius:12px;padding:15px;margin:10px 0;border-left:3px solid var(--accent)}
+.formula-block{background:rgba(0,0,0,0.4);border-left:3px solid var(--accent2);padding:12px 16px;margin:10px 0;border-radius:0 8px 8px 0;font-family:'Courier New',monospace;font-size:0.9rem;color:#e0e0e0;overflow-x:auto}
+.tag{display:inline-block;padding:3px 10px;border-radius:12px;font-size:0.75rem;font-weight:600}
+.tag-quantum{background:rgba(124,77,255,0.2);color:#b388ff}
+.tag-success{background:rgba(0,230,118,0.2);color:#69f0ae}
+.tag-warning{background:rgba(255,193,7,0.2);color:#ffe082}
+.tag-danger{background:rgba(255,82,82,0.2);color:#ff8a80}
 """
+
+
+
+# ============================================================================
+# PAGE RENDERING
+# ============================================================================
 
 def page(title, content, active=''):
     nav_html = '<div class="sidebar"><div class="sidebar-header"><h1>FinSight AI</h1><div class="version">v3.0 COGNITIVE FINANCE</div></div>'
@@ -1391,38 +1426,58 @@ def page(title, content, active=''):
     return '<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>' + title + ' | FinSight AI v3.0</title><style>' + CSS + '</style><script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script></head><body>' + nav_html + '<div class="main"><div class="page-header"><h2>' + title + '</h2></div>' + content + '</div></body></html>'
 
 
+# ============================================================================
+# DASHBOARD
+# ============================================================================
+
 @app.route('/')
 def page_dashboard():
-    c = '<p>An end-to-end Agentic AI banking platform built on 4 SSRN research papers by Saumyajit Ghosh.</p>'
-    c += '<div class="stat-grid">'
-    c += '<div class="stat-card quantum"><div class="value">QPS</div><div class="label">Quantum Personnel Securities</div></div>'
-    c += '<div class="stat-card cognitive"><div class="value">TCC</div><div class="label">Tokenized Cognitive Capital</div></div>'
-    c += '<div class="stat-card settle"><div class="value">CSL</div><div class="label">Cognitive Settlement Layer</div></div>'
-    c += '<div class="stat-card gate"><div class="value">GATE</div><div class="label">The Gate Symphony</div></div>'
+    c = '<p>FinSight AI v3.0 is an end-to-end Agentic AI cognitive finance platform implementing four SSRN research papers by <strong>Saumyajit Ghosh</strong>. Each module translates theoretical frameworks from the papers into live, interactive computation.</p>'
+    # Paper cards
+    c += '<div class="card"><h3>Research Foundation: 4 Papers, 302 Pages</h3>'
+    c += '<div class="paper-card"><h4><span class="tag tag-quantum">QPS</span> Quantum Personnel Securities</h4>'
+    c += '<div class="paper-meta">Paper 1 | 48 pages | Third asset class beyond equity and debt</div>'
+    c += '<div class="paper-innovation"><strong>Key Innovation:</strong> Quantum mechanics (superposition, entanglement, bias operators) applied to corporate leadership and human behavioral value. Introduces state C — orthogonal to equity (A) and debt (B).</div></div>'
+    c += '<div class="paper-card"><h4><span class="tag tag-success">TCC</span> Tokenized Cognitive Capital</h4>'
+    c += '<div class="paper-meta">Paper 2 | 59 pages | Pricing and trading organizational intelligence</div>'
+    c += '<div class="paper-innovation"><strong>Key Innovation:</strong> Cognitive Capital Index (7 dimensions), cognitive decay half-life, Volatility of Cognition (VoC) risk premium, cognitive reflexivity loops. Extends QPS into a tokenized instrument.</div></div>'
+    c += '<div class="paper-card"><h4><span class="tag tag-warning">CSL</span> Cognitive Settlement Layer</h4>'
+    c += '<div class="paper-meta">Paper 3 | 160 pages | Multi-agent post-trade settlement optimization</div>'
+    c += '<div class="paper-innovation"><strong>Key Innovation:</strong> 8 specialized AI agents with RL-based MDP routing, Pareto frontier optimization, global objective function across cost/risk/timeliness/exceptions. Control Tower Architecture.</div></div>'
+    c += '<div class="paper-card"><h4><span class="tag tag-danger">GATE</span> The Gate Symphony</h4>'
+    c += '<div class="paper-meta">Paper 4 | 35 pages | Deterministic logic gates for bounding agentic AI</div>'
+    c += '<div class="paper-innovation"><strong>Key Innovation:</strong> Boolean gates (AND/OR/XOR/NAND) that constrain agent autonomy. No-Autonomous-Path theorem verified across 50,000 cases. Signal provenance: sigma_A (agent), sigma_S (system), sigma_H (human).</div></div>'
     c += '</div>'
-    c += '<div class="card"><h3>Research Foundation</h3><table><thead><tr><th>Paper</th><th>Title</th><th>Pages</th><th>Key Innovation</th></tr></thead><tbody>'
-    c += '<tr><td><span class="tag tag-quantum">QPS</span></td><td>Quantum Personnel Securities: A Third Asset Class Beyond Equity and Debt</td><td>48</td><td>Quantum mechanics for pricing human/behavioral corporate value</td></tr>'
-    c += '<tr><td><span class="tag tag-success">TCC</span></td><td>Tokenized Cognitive Capital: Pricing Organizational Intelligence</td><td>59</td><td>CCI index, token mechanics, cognitive decay, reflexivity loops</td></tr>'
-    c += '<tr><td><span class="tag tag-warning">CSL</span></td><td>Cognitive Settlement Layer: Multi-Agent Post-Trade Optimisation</td><td>160</td><td>8-agent system with RL, Pareto frontier, MDP routing</td></tr>'
-    c += '<tr><td><span class="tag tag-danger">GATE</span></td><td>The Gate Symphony: Deterministic Logic Gates for Agentic AI</td><td>35</td><td>Boolean gates (AND/OR/XOR/NAND) bounding agent autonomy</td></tr>'
-    c += '</tbody></table></div>'
+    # Stats
     c += '<div class="stat-grid">'
+    c += '<div class="stat-card"><div class="value">4</div><div class="label">Research Modules</div></div>'
     c += '<div class="stat-card"><div class="value">13</div><div class="label">AI Agents</div></div>'
     c += '<div class="stat-card"><div class="value">19</div><div class="label">Simulation Scenarios</div></div>'
-    c += '<div class="stat-card"><div class="value">4</div><div class="label">Gate Types</div></div>'
     c += '<div class="stat-card"><div class="value">302</div><div class="label">Research Pages</div></div>'
+    c += '</div>'
+    # Architecture flow
+    c += '<div class="card"><h3>Cognitive Finance Architecture</h3>'
+    c += '<div class="formula-block">'
+    c += 'QPS (quantum state of leadership)<br>'
+    c += '&nbsp;&nbsp;&rarr; TCC (tokenize the cognitive capital)<br>'
+    c += '&nbsp;&nbsp;&nbsp;&nbsp;rarr; CSL (8-agent settlement of TCC instruments)<br>'
+    c += '&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;rarr; Gate Symphony (deterministic bounds on all agents)'
+    c += '</div>'
+    c += '<p>Each layer builds on the previous: QPS defines the asset, TCC prices and tokenizes it, CSL settles it through multi-agent negotiation, and Gate Symphony ensures no agent can execute without human/system oversight.</p>'
     c += '</div>'
     return page('Dashboard', c, 'overview')
 
 
+# ============================================================================
+# QPS PAGES
+# ============================================================================
 
-# QPS Pages
 @app.route('/qps')
 def page_qps():
-    c = '<p>Quantum Personnel Securities (QPS) introduces a third asset class using quantum mechanics — superposition, entanglement, and bias operators — to model the human and behavioral dimension of corporate value.</p>'
+    c = '<p>Quantum Personnel Securities (QPS) introduces a third asset class using quantum mechanics &mdash; superposition, entanglement, and bias operators &mdash; to model the human and behavioral dimension of corporate value.</p>'
     c += '<div class="info-banner"><strong>Paper 1:</strong> QPS establishes a hybrid structure that assigns tradable rights linked to key personnel. The quantum state C is neither pure equity (state A) nor pure debt (state B), but a third, orthogonal state linking financial outcomes to human decision-making quality and bias.</div>'
     c += '<div class="card"><h3>Personnel State Vector</h3>'
-    c += '<div class="math-formula">|psi> = alpha_1|strategy_1> + alpha_2|strategy_2> + ... + alpha_n|strategy_n><br>where sum(|alpha_i|^2) = 1 (normalization)</div>'
+    c += '<div class="formula-block">|psi> = alpha_1|strategy_1> + alpha_2|strategy_2> + ... + alpha_n|strategy_n><br>where sum(|alpha_i|^2) = 1 (normalization)</div>'
     c += '<form id="qpsForm" onsubmit="return submitQPS(event)">'
     c += '<div class="form-grid">'
     c += '<div class="form-group"><label>Strategy 1</label><input type="text" name="s1" value="Expansion"></div>'
@@ -1444,7 +1499,7 @@ def page_qps():
 @app.route('/qps/bias')
 def page_qps_bias():
     c = '<p>Bias operators model non-linear decision influences on leadership. Each operator transforms the personnel state vector, concentrating or dispersing strategic probability.</p>'
-    c += '<div class="info-banner"><strong>Bias Operators:</strong> Overconfidence (O_OC), Loss Aversion (O_LA), Groupthink (O_GT), Anchoring (O_AN), Confirmation (O_CF). These are non-commuting operators — the order of application matters.</div>'
+    c += '<div class="info-banner"><strong>Bias Operators:</strong> Overconfidence (O_OC), Loss Aversion (O_LA), Groupthink (O_GT), Anchoring (O_AN), Confirmation (O_CF). These are non-commuting operators &mdash; the order of application matters.</div>'
     c += '<div class="card"><h3>Apply Bias Operator</h3>'
     c += '<form id="biasForm" onsubmit="return submitBias(event)">'
     c += '<div class="form-grid">'
@@ -1460,7 +1515,7 @@ def page_qps_bias():
 
 @app.route('/qps/scenarios')
 def page_qps_scenarios():
-    c = '<p>Predefined simulation scenarios from the QPS paper, each demonstrating different leadership conditions and bias interactions.</p>'
+    c = '<p>Predefined simulation scenarios from the QPS paper, each demonstrating different leadership conditions and bias interactions. Each scenario shows the full state evolution over 10 time steps with entropy decay and payoff analysis.</p>'
     c += '<div class="card"><h3>Simulation Scenarios</h3>'
     scenarios = [
         ('overconfident_ceo', 'Overconfident CEO in Bull Market'),
@@ -1474,16 +1529,19 @@ def page_qps_scenarios():
     c += '</div>'
     c += '<div id="qpsResult"></div>'
     c += '<script>'
-    c += """function runQPS(name){fetch('/api/qps/scenario/'+name).then(function(r){return r.json()}).then(function(r){var html='<div class="card"><h3>'+r.description+'</h3>';html+='<p><strong>Initial State:</strong></p><table>';Object.entries(r.initial_state.probabilities).forEach(function(e){html+='<tr><td>'+e[0]+'</td><td>'+(e[1]*100).toFixed(1)+'%</td></tr>'});html+='</table>';if(r.bias_applications){html+='<h3 style="margin-top:15px">Bias Applications</h3>';r.bias_applications.forEach(function(b){html+='<div class="agent-card"><div class="agent-name">'+b.bias_applied+' ('+b.bias_symbol+')</div>';html+='<div class="agent-action">Entropy change: '+(b.entropy_change>=0?'+':'')+b.entropy_change.toFixed(4)+'</div>';html+='<div class="agent-action"><em>'+b.interpretation+'</em></div></div>'})}html+='<h3 style="margin-top:15px">Payoff Analysis</h3><table><tr><th>Metric</th><th>Value</th></tr>';html+='<tr><td>Base Financial Outcome</td><td>Rs. '+r.payoff.base_financial_outcome.toLocaleString()+'</td></tr>';html+='<tr><td>Entropy Penalty</td><td>'+(r.payoff.entropy_penalty*100).toFixed(2)+'%</td></tr>';html+='<tr><td>Strategy-Weighted Payoff</td><td>Rs. '+r.payoff.strategy_weighted_payoff.toLocaleString()+'</td></tr></table>';html+='<p><em>'+r.payoff.interpretation+'</em></p></div>';document.getElementById('qpsResult').innerHTML=html})}"""
+    c += """function runQPS(name){fetch('/api/qps/scenario/'+name).then(function(r){return r.json()}).then(function(r){var html='<div class="card"><h3>'+r.description+'</h3>';html+='<p><strong>Initial State:</strong></p><table>';Object.entries(r.initial_state.probabilities).forEach(function(e){html+='<tr><td>'+e[0]+'</td><td>'+(e[1]*100).toFixed(1)+'%</td></tr>'});html+='</table>';if(r.bias_applications){html+='<h3 style="margin-top:15px">Bias Applications</h3>';r.bias_applications.forEach(function(b){html+='<div class="agent-card"><div class="agent-name">'+b.bias_applied+' ('+b.bias_symbol+')</div>';html+='<div class="agent-action">Entropy change: '+(b.entropy_change>=0?'+':'')+b.entropy_change.toFixed(4)+'</div>';html+='<div class="agent-action"><em>'+b.interpretation+'</em></div></div>'})}html+='<h3 style="margin-top:15px">Payoff Analysis</h3><table><tr><th>Metric</th><th>Value</th></tr>';html+='<tr><td>Base Financial Outcome</td><td>Rs. '+r.payoff.base_financial_outcome.toLocaleString()+'</td></tr>';html+='<tr><td>Entropy Penalty</td><td>'+(r.payoff.entropy_penalty*100).toFixed(2)+'%</td></tr>';html+='<tr><td>Strategy-Weighted Payoff</td><td>Rs. '+r.payoff.strategy_weighted_payoff.toLocaleString()+'</td></tr>';html+='<tr><td>Adjusted Payoff</td><td>Rs. '+r.payoff.adjusted_payoff.toLocaleString()+'</td></tr></table>';html+='<p><em>'+r.payoff.interpretation+'</em></p>';html+='<div class="formula-block">Market: '+r.state_evolution.market_condition+' | Steps: '+r.state_evolution.time_steps+' | Final: '+r.state_evolution.final_state.dominant_strategy+'</div>';html+='</div>';html+='<div class="chart-grid">';html+='<div class="chart-container"><canvas id="qpsEvoChart"></canvas></div>';html+='<div class="chart-container"><canvas id="qpsEntropyChart"></canvas></div>';html+='</div>';document.getElementById('qpsResult').innerHTML=html;drawQPSEvolution(r);drawQPSEntropy(r)})}var qpsEvoChart=null;function drawQPSEvolution(r){var ctx=document.getElementById('qpsEvoChart');if(qpsEvoChart)qpsEvoChart.destroy();var steps=r.state_evolution.evolution;var labels=steps.map(function(s){return 'Step '+s.step});var strategies=Object.keys(steps[0].probabilities);var datasets=strategies.map(function(s,i){var colors=['#7c4dff','#ff5252','#00e676','#ffab00'];return{label:s,data:steps.map(function(step){return step.probabilities[s]*100}),borderColor:colors[i],backgroundColor:colors[i]+'33',fill:false}});qpsEvoChart=new Chart(ctx,{type:'line',data:{labels:labels,datasets:datasets},options:{responsive:true,plugins:{title:{display:true,text:'Strategy Probability Evolution (%)'}},scales:{y:{beginAtZero:true,max:100}}}})}var qpsEntChart=null;function drawQPSEntropy(r){var ctx=document.getElementById('qpsEntropyChart');if(qpsEntChart)qpsEntChart.destroy();var steps=r.state_evolution.evolution;qpsEntChart=new Chart(ctx,{type:'line',data:{labels:steps.map(function(s){return 'Step '+s.step}),datasets:[{label:'Entropy',data:steps.map(function(s){return s.entropy}),borderColor:'#00bcd4',backgroundColor:'rgba(0,188,212,0.2)',fill:true}]},options:{responsive:true,plugins:{title:{display:true,text:'Entropy Decay Over Time'}},scales:{y:{beginAtZero:true}}}})}"""
     c += '</script>'
     return page('QPS Simulation Scenarios', c, 'qps-scen')
 
 
-# TCC Pages
+# ============================================================================
+# TCC PAGES
+# ============================================================================
+
 @app.route('/tcc')
 def page_tcc():
     c = '<p>The Cognitive Capital Index (CCI) measures collective organizational intelligence across 7 dimensions, using a weighted formula with entropy adjustment and penalty functions.</p>'
-    c += '<div class="math-formula">CCI = sum(w_i * f_i) * entropy_adjustment * (1 - penalty)<br>where f_i are normalized feature scores, w_i are dynamic weights</div>'
+    c += '<div class="formula-block">CCI = sum(w_i * f_i) * entropy_adjustment * (1 - penalty)<br>where f_i are normalized feature scores, w_i are dynamic weights</div>'
     c += '<div class="card"><h3>Compute Cognitive Capital Index</h3>'
     c += '<form id="cciForm" onsubmit="return submitCCI(event)">'
     c += '<div class="form-grid">'
@@ -1498,32 +1556,32 @@ def page_tcc():
     c += '<div class="result-box" id="result"><div id="cciDetails"></div></div>'
     c += '<div class="chart-container" id="chartBox" style="display:none"><canvas id="cciChart"></canvas></div>'
     c += '<script>'
-    c += """function submitCCI(e){e.preventDefault();var f=new FormData(e.target);var features={};f.forEach(function(v,k){features[k]=parseFloat(v)});fetch('/api/tcc/cci',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({features:features})}).then(function(r){return r.json()}).then(function(r){document.getElementById('result').classList.add('show');var html='<div class="result-label">Cognitive Capital Index</div><div class="result-value">'+r.cci.toFixed(4)+'</div>';html+='<p>Rating: '+r.rating+'</p>';html+='<p><em>'+r.interpretation+'</em></p>';html+='<table><tr><th>Dimension</th><th>Score</th></tr>';Object.entries(r.feature_scores).forEach(function(e){html+='<tr><td>'+e[0].replace(/_/g,' ')+'</td><td>'+e[1].toFixed(3)+'</td></tr>'});html+='</table>';document.getElementById('cciDetails').innerHTML=html;drawCCIChart(r)})}var cciChart=null;function drawCCIChart(r){var ctx=document.getElementById('cciChart');document.getElementById('chartBox').style.display='block';if(cciChart)cciChart.destroy();var labels=Object.keys(r.feature_scores).map(function(k){return k.replace(/_/g,' ')});cciChart=new Chart(ctx,{type:'radar',data:{labels:labels,datasets:[{label:'CCI Dimensions',data:Object.values(r.feature_scores),backgroundColor:'rgba(0,230,118,0.2)',borderColor:'#00e676'}]},options:{responsive:true,plugins:{title:{display:true,text:'Cognitive Capital Index'}},scales:{r:{beginAtZero:true,max:1}}}})}"""
+    c += """function submitCCI(e){e.preventDefault();var f=new FormData(e.target);var features={};f.forEach(function(v,k){features[k]=parseFloat(v)});fetch('/api/tcc/cci',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({features:features})}).then(function(r){return r.json()}).then(function(r){document.getElementById('result').classList.add('show');var html='<div class="result-label">Cognitive Capital Index</div><div class="result-value">'+r.cci.toFixed(4)+'</div>';html+='<p>Rating: '+r.rating+'</p>';html+='<p><em>'+r.interpretation+'</em></p>';html+='<table><tr><th>Dimension</th><th>Score</th></tr>';Object.entries(r.feature_scores).forEach(function(e){html+='<tr><td>'+e[0].replace(/_/g,' ')+'</td><td>'+e[1].toFixed(3)+'</td></tr>'});html+='</table>';html+='<p>Entropy: '+r.entropy.toFixed(4)+' | Penalty: '+(r.penalty*100).toFixed(1)+'%</p>';document.getElementById('cciDetails').innerHTML=html;drawCCIChart(r)})}var cciChart=null;function drawCCIChart(r){var ctx=document.getElementById('cciChart');document.getElementById('chartBox').style.display='block';if(cciChart)cciChart.destroy();var labels=Object.keys(r.feature_scores).map(function(k){return k.replace(/_/g,' ')});cciChart=new Chart(ctx,{type:'radar',data:{labels:labels,datasets:[{label:'CCI Dimensions',data:Object.values(r.feature_scores),backgroundColor:'rgba(0,230,118,0.2)',borderColor:'#00e676'}]},options:{responsive:true,plugins:{title:{display:true,text:'Cognitive Capital Index - 7 Dimensions'}},scales:{r:{beginAtZero:true,max:1}}}})}"""
     c += '</script>'
     return page('Cognitive Capital Index', c, 'tcc')
 
 @app.route('/tcc/valuation')
 def page_tcc_val():
-    c = '<p>TCC Token Valuation Framework — links organizational intelligence to economic output with cognitive decay, Volatility of Cognition (VoC), and risk premium.</p>'
-    c += '<div class="math-formula">V(TCC) = MCV * e^(-lambda*t) / (1 + VoC_premium)<br>MCV = CCI * Revenue * 0.15<br>discount_rate = risk_free + VoC * 0.3</div>'
+    c = '<p>TCC Token Valuation Framework &mdash; links organizational intelligence to economic output with cognitive decay, Volatility of Cognition (VoC), and risk premium.</p>'
+    c += '<div class="formula-block">V(TCC) = MCV * e^(-lambda*t) / (1 + VoC_premium)<br>MCV = CCI * Revenue * 0.15<br>discount_rate = risk_free + VoC * 0.3</div>'
     c += '<div class="card"><h3>Token Valuation Parameters</h3>'
     c += '<form id="valForm" onsubmit="return submitVal(event)">'
     c += '<div class="form-grid">'
     c += '<div class="form-group"><label>CCI Score (0-1)</label><input type="number" name="cci" value="0.65" step="0.01" min="0" max="1"></div>'
-    c += '<div class="form-group"><label>Revenue (Rs.)</label><input type="number" name="revenue" value="100000000" step="1000000"></div>'
+    c += '<div class="form-group"><label>Revenue (Rs.)</label><input type="number" name="revenue" value="100000000" step="100000"></div>'
     c += '<div class="form-group"><label>Growth Rate</label><input type="number" name="growth_rate" value="0.15" step="0.01"></div>'
     c += '<div class="form-group"><label>Cognitive Decay (lambda)</label><input type="number" name="cognitive_decay" value="0.10" step="0.01"></div>'
     c += '<div class="form-group"><label>Volatility of Cognition (VoC)</label><input type="number" name="voc" value="0.15" step="0.01"></div>'
     c += '</div><p><button type="submit" class="btn">Value TCC Tokens</button></p></form></div>'
     c += '<div class="result-box" id="result"><div id="valDetails"></div></div>'
     c += '<script>'
-    c += """function submitVal(e){e.preventDefault();var f=new FormData(e.target);var d={};f.forEach(function(v,k){d[k]=parseFloat(v)});fetch('/api/tcc/valuation',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(d)}).then(function(r){return r.json()}).then(function(r){document.getElementById('result').classList.add('show');var html='<div class="result-label">Token Price</div><div class="result-value">Rs. '+r.token_price.toFixed(4)+'</div>';html+='<table><tr><th>Metric</th><th>Value</th></tr>';html+='<tr><td>MCV</td><td>Rs. '+r.mcv.toLocaleString()+'</td></tr>';html+='<tr><td>Cognitive Half-Life</td><td>'+r.half_life_years+' years</td></tr>';html+='<tr><td>Present Value</td><td>Rs. '+r.present_value.toLocaleString()+'</td></tr>';html+='<tr><td>Token Supply</td><td>'+r.token_supply.toLocaleString()+'</td></tr>';html+='<tr><td>Yield Rate</td><td>'+r.yield_rate+'%</td></tr></table>';html+='<p><em>'+r.valuation_summary+'</em></p>';document.getElementById('valDetails').innerHTML=html})}"""
+    c += """function submitVal(e){e.preventDefault();var f=new FormData(e.target);var d={};f.forEach(function(v,k){d[k]=parseFloat(v)});fetch('/api/tcc/valuation',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(d)}).then(function(r){return r.json()}).then(function(r){document.getElementById('result').classList.add('show');var html='<div class="result-label">Token Price</div><div class="result-value">Rs. '+r.token_price.toFixed(4)+'</div>';html+='<table><tr><th>Metric</th><th>Value</th></tr>';html+='<tr><td>MCV</td><td>Rs. '+r.mcv.toLocaleString()+'</td></tr>';html+='<tr><td>Cognitive Half-Life</td><td>'+r.half_life_years+' years</td></tr>';html+='<tr><td>Present Value</td><td>Rs. '+r.present_value.toLocaleString()+'</td></tr>';html+='<tr><td>Token Supply</td><td>'+r.token_supply.toLocaleString()+'</td></tr>';html+='<tr><td>Yield Rate</td><td>'+r.yield_rate+'%</td></tr>';html+='<tr><td>Discount Rate</td><td>'+(r.discount_rate*100).toFixed(2)+'%</td></tr>';html+='<tr><td>VoC Risk Premium</td><td>'+(r.voc_risk_premium*100).toFixed(2)+'%</td></tr></table>';html+='<p><em>'+r.valuation_summary+'</em></p>';document.getElementById('valDetails').innerHTML=html})}"""
     c += '</script>'
     return page('Token Valuation', c, 'tcc-val')
 
 @app.route('/tcc/scenarios')
 def page_tcc_scen():
-    c = '<p>Predefined TCC simulation scenarios from the paper, covering different organizational archetypes.</p>'
+    c = '<p>Predefined TCC simulation scenarios from the paper, covering different organizational archetypes with full CCI computation, token valuation, and cognitive reflexivity loops.</p>'
     c += '<div class="card"><h3>Market Scenarios</h3>'
     scenarios = [
         ('ai_native_startup', 'AI-Native Startup'),
@@ -1537,12 +1595,15 @@ def page_tcc_scen():
     c += '</div>'
     c += '<div id="tccResult"></div>'
     c += '<script>'
-    c += """function runTCC(name){fetch('/api/tcc/scenario/'+name).then(function(r){return r.json()}).then(function(r){var html='<div class="card"><h3>'+r.scenario.replace(/_/g,' ')+'</h3>';html+='<div class="result-value">CCI: '+r.cci_result.cci.toFixed(4)+'</div>';html+='<p>Rating: '+r.cci_result.rating+'</p>';html+='<p><em>'+r.cci_result.interpretation+'</em></p>';html+='<h3 style="margin-top:15px">Token Valuation</h3><table>';html+='<tr><td>Token Price</td><td>Rs. '+r.valuation.token_price.toFixed(4)+'</td></tr>';html+='<tr><td>Present Value</td><td>Rs. '+r.valuation.present_value.toLocaleString()+'</td></tr>';html+='<tr><td>Yield</td><td>'+r.valuation.yield_rate+'%</td></tr></table>';html+='<h3 style="margin-top:15px">Cognitive Reflexivity Loop</h3><table><tr><th>Step</th><th>Event</th><th>CCI After</th></tr>';r.reflexivity.reflexivity_loop.forEach(function(s){html+='<tr><td>'+s.step+'</td><td>'+s.event+'</td><td>'+s.cci_after_impact.toFixed(4)+'</td></tr>'});html+='</table></div>';document.getElementById('tccResult').innerHTML=html})}"""
+    c += """function runTCC(name){fetch('/api/tcc/scenario/'+name).then(function(r){return r.json()}).then(function(r){var html='<div class="card"><h3>'+r.scenario.replace(/_/g,' ')+'</h3>';html+='<div class="result-value">CCI: '+r.cci_result.cci.toFixed(4)+'</div>';html+='<p>Rating: '+r.cci_result.rating+'</p>';html+='<p><em>'+r.cci_result.interpretation+'</em></p>';html+='<table><tr><th>Dimension</th><th>Score</th></tr>';Object.entries(r.cci_result.feature_scores).forEach(function(e){html+='<tr><td>'+e[0].replace(/_/g,' ')+'</td><td>'+e[1].toFixed(3)+'</td></tr>'});html+='</table>';html+='</div>';html+='<div class="card"><h3>Token Valuation</h3><table>';html+='<tr><td>Token Price</td><td>Rs. '+r.valuation.token_price.toFixed(4)+'</td></tr>';html+='<tr><td>Present Value</td><td>Rs. '+r.valuation.present_value.toLocaleString()+'</td></tr>';html+='<tr><td>Yield</td><td>'+r.valuation.yield_rate+'%</td></tr>';html+='<tr><td>Half-Life</td><td>'+r.valuation.half_life_years+' years</td></tr></table>';html+='<p><em>'+r.valuation.valuation_summary+'</em></p></div>';html+='<div class="card"><h3>Cognitive Reflexivity Loop</h3>';html+='<table><tr><th>Step</th><th>Event</th><th>Market Impact</th><th>CCI After</th></tr>';r.reflexivity.reflexivity_loop.forEach(function(s){html+='<tr><td>'+s.step+'</td><td>'+s.event+'</td><td>'+(s.market_impact*100).toFixed(1)+'%</td><td>'+s.cci_after_impact.toFixed(4)+'</td></tr>'});html+='</table>';html+='<p><strong>Final CCI:</strong> '+r.reflexivity.final_cci.toFixed(4)+'</p>';html+='<p><em>'+r.reflexivity.interpretation+'</em></p></div>';html+='<div class="chart-grid">';html+='<div class="chart-container"><canvas id="tccRadarChart"></canvas></div>';html+='<div class="chart-container"><canvas id="tccReflexChart"></canvas></div>';html+='</div>';document.getElementById('tccResult').innerHTML=html;drawTCCRadar(r);drawTCCReflexivity(r)})}var tccRadarChart=null;function drawTCCRadar(r){var ctx=document.getElementById('tccRadarChart');if(tccRadarChart)tccRadarChart.destroy();var labels=Object.keys(r.cci_result.feature_scores).map(function(k){return k.replace(/_/g,' ')});tccRadarChart=new Chart(ctx,{type:'radar',data:{labels:labels,datasets:[{label:'CCI Score',data:Object.values(r.cci_result.feature_scores),backgroundColor:'rgba(0,230,118,0.2)',borderColor:'#00e676'}]},options:{responsive:true,plugins:{title:{display:true,text:'Cognitive Capital Index'}},scales:{r:{beginAtZero:true,max:1}}}})}var tccRefChart=null;function drawTCCReflexivity(r){var ctx=document.getElementById('tccReflexChart');if(tccRefChart)tccRefChart.destroy();var loop=r.reflexivity.reflexivity_loop;tccRefChart=new Chart(ctx,{type:'line',data:{labels:loop.map(function(s){return 'Step '+s.step}),datasets:[{label:'CCI After Impact',data:loop.map(function(s){return s.cci_after_impact}),borderColor:'#ffab00',backgroundColor:'rgba(255,171,0,0.2)',fill:true}]},options:{responsive:true,plugins:{title:{display:true,text:'Cognitive Reflexivity Loop - CCI Over Events'}},scales:{y:{beginAtZero:true,max:1}}}})}"""
     c += '</script>'
     return page('TCC Market Scenarios', c, 'tcc-scen')
 
 
-# CSL Pages
+# ============================================================================
+# CSL PAGES
+# ============================================================================
+
 @app.route('/csl')
 def page_csl():
     c = '<p>The Cognitive Settlement Layer (CSL) is a multi-agent AI system for real-time securities post-trade settlement optimization. 8 specialized agents analyze each trade and collaboratively compute the optimal settlement route.</p>'
@@ -1551,7 +1612,7 @@ def page_csl():
     for agent in CSLEngine.AGENT_DEFINITIONS:
         c += '<tr><td>' + agent['name'] + '</td><td>' + agent['role'] + '</td></tr>'
     c += '</tbody></table></div>'
-    c += '<div class="math-formula">F(x) = w1*C(x) + w2*R(x) + w3*T(x) + w4*B(x)<br>where C=Cost, R=Risk, T=Timeliness, B=Exception probability</div>'
+    c += '<div class="formula-block">F(x) = w1*C(x) + w2*R(x) + w3*T(x) + w4*B(x)<br>where C=Cost, R=Risk, T=Timeliness, B=Exception probability</div>'
     c += '<div class="card"><h3>Submit Trade for Settlement Optimization</h3>'
     c += '<form id="cslForm" onsubmit="return submitCSL(event)">'
     c += '<div class="form-grid">'
@@ -1562,13 +1623,13 @@ def page_csl():
     c += '</div><p><button type="submit" class="btn">Run 8-Agent Settlement</button></p></form></div>'
     c += '<div id="cslResult"></div>'
     c += '<script>'
-    c += """function submitCSL(e){e.preventDefault();var f=new FormData(e.target);var d={};f.forEach(function(v,k){d[k]=(k==='value'||k==='current_hour')?parseInt(v):v});fetch('/api/csl/settle',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(d)}).then(function(r){return r.json()}).then(function(r){var html='<div class="card"><h3>Settlement Result</h3>';html+='<div class="result-value">Optimal Route: '+r.optimal_route+'</div>';html+='<p>Pareto-optimal routes: '+r.pareto_frontier.join(', ')+'</p>';html+='<p><strong>vs Static SSI:</strong> '+r.ssi_comparison.interpretation+'</p></div>';html+='<div class="card"><h3>Agent Computations</h3>';r.agents.forEach(function(a){html+='<div class="agent-card"><div class="agent-name">'+a.name+' — '+a.status+'</div>';html+='<div class="agent-action">'+a.analysis+'</div>';html+='<div class="agent-action">Recommendation: '+a.recommendation+'</div>';if(a.bids){var bids='';Object.entries(a.bids).forEach(function(e){bids+=e[0]+'='+e[1]+', '});html+='<div class="agent-action">Bids: '+bids+'</div>'}html+='</div>'});html+='</div>';document.getElementById('cslResult').innerHTML=html})}"""
+    c += """function submitCSL(e){e.preventDefault();var f=new FormData(e.target);var d={};f.forEach(function(v,k){d[k]=(k==='value'||k==='current_hour')?parseInt(v):v});fetch('/api/csl/settle',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(d)}).then(function(r){return r.json()}).then(function(r){var html='<div class="card"><h3>Settlement Result</h3>';html+='<div class="result-value">Optimal Route: '+r.optimal_route+'</div>';html+='<p>Pareto-optimal routes: '+r.pareto_frontier.join(', ')+'</p>';html+='<p><strong>vs Static SSI:</strong> '+r.ssi_comparison.interpretation+'</p></div>';html+='<div class="card"><h3>Agent Computations</h3>';r.agents.forEach(function(a){html+='<div class="agent-card"><div class="agent-name">'+a.name+' &mdash; '+a.status+'</div>';html+='<div class="agent-action">'+a.analysis+'</div>';html+='<div class="agent-action">Recommendation: '+a.recommendation+'</div>';if(a.bids){var bids='';Object.entries(a.bids).forEach(function(e){bids+=e[0]+'='+e[1]+', '});html+='<div class="agent-action">Bids: '+bids+'</div>'}html+='</div>'});html+='</div>';html+='<div class="chart-container"><canvas id="cslBidChart"></canvas></div>';document.getElementById('cslResult').innerHTML=html;drawCSLBids(r)})}var cslBidChart=null;function drawCSLBids(r){var ctx=document.getElementById('cslBidChart');if(cslBidChart)cslBidChart.destroy();var agents=r.agents.filter(function(a){return a.bids});var firstAgent=agents[0];if(!firstAgent)return;var routes=Object.keys(firstAgent.bids);var datasets=agents.map(function(a,i){var colors=['#7c4dff','#ff5252','#00e676','#ffab00','#00bcd4','#e91e63','#9c27b0','#4caf50'];return{label:a.name,data:routes.map(function(r){return a.bids[r]||0}),backgroundColor:colors[i%8]}});cslBidChart=new Chart(ctx,{type:'bar',data:{labels:routes,datasets:datasets},options:{responsive:true,plugins:{title:{display:true,text:'Agent Bids by Settlement Route'}},scales:{y:{beginAtZero:true}}}})}"""
     c += '</script>'
     return page('Cognitive Settlement Layer', c, 'csl')
 
 @app.route('/csl/scenarios')
 def page_csl_scen():
-    c = '<p>Predefined settlement scenarios from the CSL paper, covering cross-border equity, repo/SBL, multi-currency FX, and high-stress conditions.</p>'
+    c = '<p>Predefined settlement scenarios from the CSL paper, covering cross-border equity, repo/SBL, multi-currency FX, and high-stress conditions. Each scenario shows full 8-agent analysis with Pareto frontier.</p>'
     c += '<div class="card"><h3>Settlement Scenarios</h3>'
     scenarios = [
         ('cross_border_equity', 'Cross-Border Equity Settlement (SGX to Euroclear)'),
@@ -1581,16 +1642,19 @@ def page_csl_scen():
     c += '</div>'
     c += '<div id="cslResult"></div>'
     c += '<script>'
-    c += """function runCSL(name){fetch('/api/csl/scenario/'+name).then(function(r){return r.json()}).then(function(r){var html='<div class="card"><h3>'+r.description+'</h3>';html+='<div class="result-value">Optimal Route: '+r.optimal_route+'</div>';html+='<p>'+r.ssi_comparison.interpretation+'</p></div>';html+='<div class="card"><h3>Agent Details</h3>';r.agents.forEach(function(a){html+='<div class="agent-card"><div class="agent-name">'+a.name+'</div>';html+='<div class="agent-action">'+a.analysis+'</div>';html+='<div class="agent-action">Recommends: '+a.recommendation+'</div></div>'});html+='</div>';document.getElementById('cslResult').innerHTML=html})}"""
+    c += """function runCSL(name){fetch('/api/csl/scenario/'+name).then(function(r){return r.json()}).then(function(r){var html='<div class="card"><h3>'+r.description+'</h3>';html+='<div class="result-value">Optimal Route: '+r.optimal_route+'</div>';html+='<p>Pareto-optimal routes: '+r.pareto_frontier.join(', ')+'</p>';html+='<p><strong>vs Static SSI:</strong> '+r.ssi_comparison.interpretation+'</p>';html+='</div>';html+='<div class="card"><h3>Agent Details</h3>';r.agents.forEach(function(a){html+='<div class="agent-card"><div class="agent-name">'+a.name+'</div>';html+='<div class="agent-action">'+a.analysis+'</div>';html+='<div class="agent-action">Recommends: '+a.recommendation+'</div>';if(a.bids){var bids='';Object.entries(a.bids).forEach(function(e){bids+=e[0]+'='+e[1]+', '});html+='<div class="agent-action">Bids: '+bids+'</div>'}html+='</div>'});html+='</div>';html+='<div class="chart-container"><canvas id="cslScenChart"></canvas></div>';document.getElementById('cslResult').innerHTML=html;drawCSLScenario(r)})}var cslScChart=null;function drawCSLScenario(r){var ctx=document.getElementById('cslScenChart');if(cslScChart)cslScChart.destroy();var agents=r.agents.filter(function(a){return a.bids});if(!agents.length)return;var routes=Object.keys(agents[0].bids);var datasets=agents.map(function(a,i){var colors=['#7c4dff','#ff5252','#00e676','#ffab00','#00bcd4','#e91e63','#9c27b0','#4caf50'];return{label:a.name,data:routes.map(function(r){return a.bids[r]||0}),backgroundColor:colors[i%8]}});cslScChart=new Chart(ctx,{type:'bar',data:{labels:routes,datasets:datasets},options:{responsive:true,plugins:{title:{display:true,text:'Agent Bids by Settlement Route'}},scales:{y:{beginAtZero:true}}}})}"""
     c += '</script>'
     return page('CSL Settlement Scenarios', c, 'csl-scen')
 
 
-# Gate Symphony Pages
+# ============================================================================
+# GATE SYMPHONY PAGES
+# ============================================================================
+
 @app.route('/gate')
 def page_gate():
     c = '<p>The Gate Symphony uses deterministic Boolean logic gates (AND, OR, XOR, NAND) to constrain agentic AI autonomy. Every consequential action must pass through gates whose satisfaction requires inputs the agent cannot produce.</p>'
-    c += '<div class="info-banner"><strong>Paper 4:</strong> No-autonomous-path theorem — for any well-formed gate symphony, there exists no satisfying assignment of agent-producible signals alone that opens a path to a consequential action. Verified with 50,000 randomized cases and 152,285 capability checks.</div>'
+    c += '<div class="info-banner"><strong>Paper 4:</strong> No-autonomous-path theorem &mdash; for any well-formed gate symphony, there exists no satisfying assignment of agent-producible signals alone that opens a path to a consequential action. Verified with 50,000 randomized cases and 152,285 capability checks.</div>'
     c += '<div class="card"><h3>The Four Canonical Gates</h3>'
     c += '<div class="stat-grid">'
     c += '<div class="stat-card gate"><div class="value">AND</div><div class="label">Conjunctive Authorization</div></div>'
@@ -1599,15 +1663,19 @@ def page_gate():
     c += '<div class="stat-card gate"><div class="value">NAND</div><div class="label">Circuit Breaker</div></div>'
     c += '</div></div>'
     c += '<div class="card"><h3>Autonomy Lattice</h3>'
-    c += '<div class="math-formula">DENY < OBSERVE < SIMULATE < PROPOSE < BOUNDED_EXECUTE < EXECUTE<br>L_eff = meet_i(L_i) — minimum authority wins</div>'
+    c += '<div class="formula-block">DENY < OBSERVE < SIMULATE < PROPOSE < BOUNDED_EXECUTE < EXECUTE<br>L_eff = meet_i(L_i) &mdash; minimum authority wins</div>'
     c += '<p>Each gate returns a maximum permitted autonomy level. The effective level is the meet (greatest lower bound) of all gate outputs.</p></div>'
+    c += '<div class="card"><h3>Signal Provenance</h3>'
+    c += '<p>Every signal entering a gate is tagged with its provenance:</p>'
+    c += '<p><span class="prov-tag prov-sigma-a">sigma_A</span> Agent-produced &nbsp; <span class="prov-tag prov-sigma-s">sigma_S</span> System-generated &nbsp; <span class="prov-tag prov-sigma-h">sigma_H</span> Human-issued</p>'
+    c += '<p>A well-formed C2/C3 gate must contain at least one sigma_S or sigma_H signal. Gates with only sigma_A inputs are flagged as violations.</p></div>'
     c += '<div class="card"><h3>Evaluate Gate Symphony</h3>'
     c += '<p>Select a scenario to evaluate the full gate symphony with signal provenance checking and no-autonomous-path verification:</p>'
     scenarios = [
-        ('ssi_routing_safe', 'SSI Routing — All Approvals (Safe)'),
-        ('ssi_routing_blocked', 'SSI Routing — No Human Approval (Blocked)'),
-        ('nand_circuit_breaker', 'NAND Circuit Breaker — Fraud Detection'),
-        ('xor_mode_conflict', 'XOR — Sandbox vs Production Conflict'),
+        ('ssi_routing_safe', 'SSI Routing &mdash; All Approvals (Safe)'),
+        ('ssi_routing_blocked', 'SSI Routing &mdash; No Human Approval (Blocked)'),
+        ('nand_circuit_breaker', 'NAND Circuit Breaker &mdash; Fraud Detection'),
+        ('xor_mode_conflict', 'XOR &mdash; Sandbox vs Production Conflict'),
         ('agent_only_attack', 'Agent-Only Attack (No-Autonomous-Path Test)'),
     ]
     for name, label in scenarios:
@@ -1615,47 +1683,52 @@ def page_gate():
     c += '</div>'
     c += '<div id="gateResult"></div>'
     c += '<script>'
-    c += """function runGate(name){fetch('/api/gate/scenario/'+name).then(function(r){return r.json()}).then(function(r){var color=r.overall_result==='PROCEED'?'var(--success)':'var(--danger)';var html='<div class="card"><h3>'+r.description+'</h3>';html+='<div class="result-value" style="color:'+color+'">'+r.overall_result+'</div>';html+='<p>Effective Autonomy: '+r.effective_autonomy_level+'</p>';html+='<p>No-Autonomous-Path Verified: '+(r.no_autonomous_path_verified?'YES':'NO — VIOLATION')+'</p>';html+='<p><em>'+r.nap_analysis+'</em></p></div>';html+='<div class="card"><h3>Gate Evaluation</h3>';r.gate_results.forEach(function(g){var gcolor=g.result==='PROCEED'?'var(--success)':'var(--danger)';html+='<div class="agent-card"><div class="agent-name">'+g.gate_name+' ('+g.gate_type+') — '+g.result+'</div>';html+='<div class="agent-action">Inputs: ['+g.inputs.join(', ')+']</div>';html+='<div class="agent-action">Provenance: ['+g.input_provenances.join(', ')+']</div>';if(g.violation)html+='<div class="agent-action" style="color:var(--danger)">VIOLATION: '+g.violation+'</div>';html+='</div>'});html+='<h4>Audit Trail</h4><table><tr><td>Gates Evaluated</td><td>'+r.audit_trail.gates_evaluated+'</td></tr>';html+='<tr><td>Gates Satisfied</td><td>'+r.audit_trail.gates_satisfied+'</td></tr>';html+='<tr><td>Gates Blocked</td><td>'+r.audit_trail.gates_blocked+'</td></tr></table></div>';document.getElementById('gateResult').innerHTML=html})}"""
+    c += """function runGate(name){fetch('/api/gate/scenario/'+name).then(function(r){return r.json()}).then(function(r){var color=r.overall_result==='PROCEED'?'var(--success)':'var(--danger)';var html='<div class="card"><h3>'+r.description+'</h3>';html+='<div class="result-value" style="color:'+color+'">'+r.overall_result+'</div>';html+='<p>Effective Autonomy: '+r.effective_autonomy_level+'</p>';html+='<p>Consequence Class: '+r.consequence_class+' &mdash; '+r.consequence_description+'</p>';html+='<p>No-Autonomous-Path Verified: <strong>'+(r.no_autonomous_path_verified?'YES':'NO &mdash; VIOLATION')+'</strong></p>';html+='<p><em>'+r.nap_analysis+'</em></p></div>';html+='<div class="card"><h3>Gate Circuit Diagram</h3>';html+='<div class="gate-circuit">';r.gate_results.forEach(function(g,idx){var cls=g.result==='PROCEED'?'proceed':'blocked';if(g.violation)cls='violation';html+='<div class="gate-node '+cls+'">';html+='<div style="font-weight:bold">'+g.gate_name+'</div>';html+='<div style="font-size:0.8rem">'+g.gate_type+'</div>';html+='<div style="font-size:0.7rem;margin-top:5px">';g.input_signals.forEach(function(sig,i){var prov=g.input_provenances[i];var provClass=prov==='sigma_A'?'prov-sigma-a':(prov==='sigma_S'?'prov-sigma-s':'prov-sigma-h');html+='<span class="prov-tag '+provClass+'">'+prov+'</span> '});html+='</div>';html+='<div style="margin-top:5px;color:'+(g.result==='PROCEED'?'var(--success)':'var(--danger)')+'">'+g.result+'</div>';html+='</div>';if(idx<r.gate_results.length-1)html+='<div class="gate-arrow">&rarr;</div>'});html+='</div>';if(r.audit_trail){html+='<h4 style="margin-top:15px">Audit Trail</h4><table>';html+='<tr><td>Gates Evaluated</td><td>'+r.audit_trail.gates_evaluated+'</td></tr>';html+='<tr><td>Gates Satisfied</td><td>'+r.audit_trail.gates_satisfied+'</td></tr>';html+='<tr><td>Gates Blocked</td><td>'+r.audit_trail.gates_blocked+'</td></tr>';html+='<tr><td>Well-Formedness Violations</td><td>'+r.audit_trail.well_formedness_violations+'</td></tr></table>'}html+='</div>';html+='<div class="card"><h3>Gate Details</h3>';r.gate_results.forEach(function(g){var gcolor=g.result==='PROCEED'?'var(--success)':'var(--danger)';html+='<div class="agent-card"><div class="agent-name" style="color:'+gcolor+'">'+g.gate_name+' ('+g.gate_type+') &mdash; '+g.result+'</div>';html+='<div class="agent-action">Control Primitive: '+g.control_primitive+'</div>';html+='<div class="agent-action">'+g.description+'</div>';html+='<div class="agent-action">Inputs: ['+g.inputs.join(', ')+'] &rarr; Output: '+g.output+'</div>';html+='<div class="agent-action">Signals: ['+g.input_signals.join(', ')+']</div>';html+='<div class="agent-action">Provenance: ['+g.input_provenances.join(', ')+']</div>';if(g.violation)html+='<div class="agent-action" style="color:var(--danger)"><strong>VIOLATION:</strong> '+g.violation+'</div>';if(!g.well_formed)html+='<div class="agent-action" style="color:#ff9800">Not well-formed</div>';html+='</div>'});html+='</div>';document.getElementById('gateResult').innerHTML=html})}"""
     c += '</script>'
     return page('The Gate Symphony', c, 'gate')
 
 @app.route('/gate/truth-tables')
 def page_gate_tt():
-    c = '<p>Truth tables for the four canonical logic gates used in the Gate Symphony architecture.</p>'
+    c = '<p>Truth tables for the four canonical logic gates used in the Gate Symphony architecture. Each gate type constrains agent autonomy differently.</p>'
     for gate_type in ['AND', 'OR', 'XOR', 'NAND']:
         gt = GateSymphony.GATE_TYPES[gate_type]
-        c += '<div class="card"><h3>' + gate_type + ' Gate — ' + gt['control_primitive'] + '</h3>'
+        c += '<div class="card"><h3>' + gate_type + ' Gate &mdash; ' + gt['control_primitive'] + '</h3>'
         c += '<p>' + gt['description'] + '</p>'
         c += '<p style="color:var(--text-dim);font-size:0.8rem">Attenuation: ' + gt['attenuation'] + '</p>'
-        c += '<div class="truth-table"><table><thead><tr>'
-        c += '<th>A</th><th>B</th><th>Output</th>'
-        c += '</tr></thead><tbody>'
+        c += '<table><thead><tr><th>A</th><th>B</th><th>Output</th></tr></thead><tbody>'
         for row in gt['truth_table']:
             c += '<tr>'
             for val in row:
                 style = 'color:' + ('var(--success)' if val == 1 else 'var(--danger)')
-                c += '<td style="' + style + '">' + str(val) + '</td>'
+                c += '<td style="' + style + ';font-weight:bold">' + str(val) + '</td>'
             c += '</tr>'
-        c += '</tbody></table></div></div>'
+        c += '</tbody></table></div>'
     return page('Gate Truth Tables', c, 'gate-tt')
 
 @app.route('/gate/scenarios')
 def page_gate_scen():
-    c = '<p>Predefined Gate Symphony scenarios demonstrating the architecture in action.</p>'
+    c = '<p>Predefined Gate Symphony scenarios demonstrating the architecture in action. Each scenario shows the full gate circuit evaluation with signal provenance and NAP verification.</p>'
     c += '<div class="card"><h3>Gate Scenarios</h3>'
     scenarios = [
-        ('ssi_routing_safe', 'SSI Routing — All Approvals Present'),
-        ('ssi_routing_blocked', 'SSI Routing — Missing Human Approval'),
-        ('nand_circuit_breaker', 'NAND Circuit Breaker — Fraud Pattern'),
-        ('xor_mode_conflict', 'XOR — Mode Conflict Detection'),
-        ('agent_only_attack', 'Agent-Only Attack — No-Autonomous-Path Test'),
+        ('ssi_routing_safe', 'SSI Routing &mdash; All Approvals Present'),
+        ('ssi_routing_blocked', 'SSI Routing &mdash; Missing Human Approval'),
+        ('nand_circuit_breaker', 'NAND Circuit Breaker &mdash; Fraud Pattern'),
+        ('xor_mode_conflict', 'XOR &mdash; Mode Conflict Detection'),
+        ('agent_only_attack', 'Agent-Only Attack &mdash; NAP Test'),
     ]
     for name, label in scenarios:
         c += '<a class="scenario-btn" href="#" onclick="runG(\'' + name + '\');return false">' + label + '</a>'
     c += '</div>'
     c += '<div id="gateResult"></div>'
     c += '<script>'
-    c += """function runG(name){fetch('/api/gate/scenario/'+name).then(function(r){return r.json()}).then(function(r){var color=r.overall_result==='PROCEED'?'var(--success)':'var(--danger)';var html='<div class="card"><h3>'+r.description+'</h3>';html+='<div class="result-value" style="color:'+color+'">'+r.overall_result+'</div>';html+='<p>NAP Verified: '+(r.no_autonomous_path_verified?'YES':'NO')+'</p>';html+='<p><em>'+r.nap_analysis+'</em></p></div>';r.gate_results.forEach(function(g){html+='<div class="agent-card"><div class="agent-name">'+g.gate_name+' — '+g.result+'</div></div>'});document.getElementById('gateResult').innerHTML=html})}"""
+    c += """function runG(name){fetch('/api/gate/scenario/'+name).then(function(r){return r.json()}).then(function(r){var color=r.overall_result==='PROCEED'?'var(--success)':'var(--danger)';var html='<div class="card"><h3>'+r.description+'</h3>';html+='<div class="result-value" style="color:'+color+'">'+r.overall_result+'</div>';html+='<p>Autonomy: '+r.effective_autonomy_level+'</p>';html+='<p>NAP Verified: <strong>'+(r.no_autonomous_path_verified?'YES':'NO')+'</strong></p>';html+='<p><em>'+r.nap_analysis+'</em></p></div>';html+='<div class="card"><h3>Gate Circuit</h3><div class="gate-circuit">';r.gate_results.forEach(function(g,idx){var cls=g.result==='PROCEED'?'proceed':'blocked';if(g.violation)cls='violation';html+='<div class="gate-node '+cls+'"><div style="font-weight:bold">'+g.gate_name+'</div><div style="font-size:0.8rem">'+g.gate_type+'</div>';g.input_signals.forEach(function(sig,i){var prov=g.input_provenances[i];var pcls=prov==='sigma_A'?'prov-sigma-a':(prov==='sigma_S'?'prov-sigma-s':'prov-sigma-h');html+='<span class="prov-tag '+pcls+'">'+prov+'</span>'});html+='<div style="margin-top:5px;color:'+(g.result==='PROCEED'?'var(--success)':'var(--danger)')+'">'+g.result+'</div></div>';if(idx<r.gate_results.length-1)html+='<div class="gate-arrow">&rarr;</div>'});html+='</div></div>';r.gate_results.forEach(function(g){var gcolor=g.result==='PROCEED'?'var(--success)':'var(--danger)';html+='<div class="agent-card"><div class="agent-name" style="color:'+gcolor+'">'+g.gate_name+' &mdash; '+g.result+'</div>';html+='<div class="agent-action">Signals: ['+g.input_signals.join(', ')+']</div>';html+='<div class="agent-action">Provenance: ['+g.input_provenances.join(', ')+']</div>';if(g.violation)html+='<div class="agent-action" style="color:var(--danger)">'+g.violation+'</div>';html+='</div>'});document.getElementById('gateResult').innerHTML=html})}"""
     c += '</script>'
     return page('Gate Scenarios', c, 'gate-scen')
 
+
+# ============================================================================
+# MAIN
+# ============================================================================
+
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 5000)), debug=False)
