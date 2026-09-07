@@ -1588,6 +1588,36 @@ table th{color:var(--accent);font-weight:600;font-size:0.75rem;text-transform:up
 .tag-success{background:rgba(0,230,118,0.2);color:#69f0ae}
 .tag-warning{background:rgba(255,193,7,0.2);color:#ffe082}
 .tag-danger{background:rgba(255,82,82,0.2);color:#ff8a80}
+
+/* === v3.3: STAMP, LATTICE, SLIDER, PAPER ARCHIVE === */
+.stamp{display:inline-block;font-family:Georgia,serif;font-weight:700;font-size:22px;letter-spacing:.04em;text-transform:uppercase;padding:8px 18px;border:3px solid currentColor;border-radius:6px;box-shadow:inset 0 0 0 2px var(--bg),inset 0 0 0 3.5px currentColor;transform:rotate(-3deg);line-height:1.2;white-space:nowrap;margin:4px 8px 6px 4px;animation:land .28s ease-out}
+.stamp.green{color:var(--success)}.stamp.amber{color:var(--warning)}.stamp.red{color:var(--danger)}.stamp.blue{color:var(--accent)}
+@keyframes land{from{transform:rotate(-3deg) scale(1.35);opacity:.15}to{transform:rotate(-3deg) scale(1);opacity:1}}
+.lattice{display:flex;align-items:center;flex-wrap:wrap;gap:0;margin:15px 0}
+.lnode{padding:8px 14px;border:1.5px solid var(--border);border-radius:4px;font-size:13px;background:var(--card);white-space:nowrap}
+.lnode.req{border-color:var(--accent);color:var(--accent);border-style:dashed}
+.lnode.gr{background:var(--accent);color:#fff;border-color:var(--accent)}
+.lnode.gr.req{border-style:solid}
+.ledge{width:24px;height:2px;background:var(--border)}
+.range-row{display:flex;align-items:center;gap:10px;margin:6px 0}
+.range-row label{flex:1;font-size:0.82rem;color:var(--text-dim)}
+.range-row output{min-width:40px;text-align:right;font-size:0.82rem;color:var(--text)}
+input[type=range]{width:100%;accent-color:var(--accent);margin:4px 0}
+.paper-detail{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:24px;margin:15px 0}
+.paper-detail h3{font-size:1.2rem;color:var(--accent);margin-bottom:8px}
+.paper-detail .paper-abstract{font-size:0.9rem;line-height:1.6;color:var(--text);margin:12px 0;padding:12px;background:var(--bg);border-radius:8px;border-left:3px solid var(--accent)}
+.paper-detail .paper-keywords{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0}
+.paper-detail .keyword{background:var(--card-light);border:1px solid var(--border);border-radius:12px;padding:3px 10px;font-size:0.75rem;color:var(--text-dim)}
+.paper-detail .paper-meta{font-size:0.8rem;color:var(--text-dim);margin:8px 0}
+.paper-card-link{display:block;background:linear-gradient(135deg,rgba(124,77,255,0.08),rgba(0,188,212,0.08));border:1px solid var(--border);border-radius:10px;padding:16px;margin:8px 0;text-decoration:none;color:var(--text);transition:transform 0.2s,border-color 0.2s}
+.paper-card-link:hover{transform:translateY(-2px);border-color:var(--accent)}
+.paper-card-link h4{color:var(--accent);margin:0 0 6px 0;font-size:0.95rem}
+.paper-card-link .paper-meta{font-size:0.78rem;color:var(--text-dim)}
+.csl-weight-panel{background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:15px;margin:10px 0}
+.route-row{display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid var(--border)}
+.route-row:last-child{border-bottom:none}
+.route-bar{flex:1;height:14px;background:var(--bg);border-radius:3px;overflow:hidden}
+.route-bar span{display:block;height:100%;border-radius:3px}
 """
 
 
@@ -1604,6 +1634,7 @@ def page(title, content, active=''):
         ('Paper 2: TCC', [('/tcc', 'Cognitive Capital Index', 'tcc'), ('/tcc/valuation', 'Token Valuation', 'tcc-val'), ('/tcc/scenarios', 'Market Scenarios', 'tcc-scen')]),
         ('Paper 3: CSL', [('/csl', 'Settlement Layer', 'csl'), ('/csl/rl', 'RL Training', 'csl-rl'), ('/csl/scenarios', 'Settlement Scenarios', 'csl-scen')]),
         ('Paper 4: Gates', [('/gate', 'Gate Symphony', 'gate'), ('/gate/truth-tables', 'Truth Tables', 'gate-tt'), ('/gate/scenarios', 'Gate Scenarios', 'gate-scen')]),
+        ('Archive', [('/papers', 'Research Papers', 'papers')]),
     ]
     for section_name, items in sections:
         nav_html += '<div class="nav-section"><div class="nav-section-title">' + section_name + '</div>'
@@ -1811,18 +1842,26 @@ def page_csl():
         c += '<tr><td>' + agent['name'] + '</td><td>' + agent['role'] + '</td></tr>'
     c += '</tbody></table></div>'
     c += '<div class="formula-block">F(x) = w1*C(x) + w2*R(x) + w3*T(x) + w4*B(x)<br>where C=Cost, R=Risk, T=Timeliness, B=Exception probability</div>'
-    c += '<div class="card"><h3>Submit Trade for Settlement Optimization</h3>'
-    c += '<form id="cslForm" onsubmit="return submitCSL(event)">'
+    c += '<div class="card"><h3>Submit Trade for Settlement</h3>'
+    c += '<div class="csl-weight-panel">'
     c += '<div class="form-grid">'
-    c += '<div class="form-group"><label>Trade Value ($)</label><input type="number" name="value" value="5000000" step="100000"></div>'
-    c += '<div class="form-group"><label>Currency</label><select name="currency"><option>USD</option><option>EUR</option><option>SGD</option><option>GBP</option></select></div>'
-    c += '<div class="form-group"><label>Counterparty</label><input type="text" name="counterparty" value="Broker A"></div>'
-    c += '<div class="form-group"><label>Current Hour</label><input type="number" name="current_hour" value="13" min="0" max="23"></div>'
-    c += '</div><p><button type="submit" class="btn">Run 8-Agent Settlement</button></p></form></div>'
+    c += '<div class="form-group"><label>Trade Value ($)</label><input type="number" id="cslValue" value="5000000" step="100000"></div>'
+    c += '<div class="form-group"><label>Currency</label><select id="cslCurrency"><option>USD</option><option>EUR</option><option>SGD</option><option>GBP</option></select></div>'
+    c += '<div class="form-group"><label>Counterparty</label><input type="text" id="cslCounterparty" value="Broker A"></div>'
+    c += '<div class="form-group"><label>Current Hour</label><input type="number" id="cslHour" value="13" min="0" max="23"></div>'
+    c += '</div>'
+    c += '<h4 style="color:var(--accent);margin:15px 0 10px">Orchestrator Weights (drag to recompute live)</h4>'
+    c += '<div class="range-row"><label>Cost</label><input type="range" id="wCost" min="0" max="100" value="20" oninput="document.getElementById(\'wCostOut\').textContent=this.value;runCSLLive()"><output id="wCostOut">20</output></div>'
+    c += '<div class="range-row"><label>Liquidity</label><input type="range" id="wLiq" min="0" max="100" value="20" oninput="document.getElementById(\'wLiqOut\').textContent=this.value;runCSLLive()"><output id="wLiqOut">20</output></div>'
+    c += '<div class="range-row"><label>FX Path</label><input type="range" id="wFx" min="0" max="100" value="10" oninput="document.getElementById(\'wFxOut\').textContent=this.value;runCSLLive()"><output id="wFxOut">10</output></div>'
+    c += '<div class="range-row"><label>Timeliness</label><input type="range" id="wTime" min="0" max="100" value="20" oninput="document.getElementById(\'wTimeOut\').textContent=this.value;runCSLLive()"><output id="wTimeOut">20</output></div>'
+    c += '<div class="range-row"><label>Operational Risk</label><input type="range" id="wRisk" min="0" max="100" value="15" oninput="document.getElementById(\'wRiskOut\').textContent=this.value;runCSLLive()"><output id="wRiskOut">15</output></div>'
+    c += '<div class="range-row"><label>Exception Prob.</label><input type="range" id="wExc" min="0" max="100" value="15" oninput="document.getElementById(\'wExcOut\').textContent=this.value;runCSLLive()"><output id="wExcOut">15</output></div>'
+    c += '<p style="margin-top:10px"><button class="btn" onclick="runCSLLive()">Run 8-Agent Settlement</button></p>'
+    c += '</div></div>'
     c += '<div id="cslResult"></div>'
     c += '<script>'
-    c += """function submitCSL(e){e.preventDefault();var f=new FormData(e.target);var d={};f.forEach(function(v,k){d[k]=(k==='value'||k==='current_hour')?parseInt(v):v});fetch('/api/csl/settle',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(d)}).then(function(r){return r.json()}).then(function(r){var html='<div class="card"><h3>Settlement Result</h3>';html+='<div class="result-value">Optimal Route: '+r.optimal_route+'</div>';html+='<p>Pareto-optimal routes: '+r.pareto_frontier.join(', ')+'</p>';html+='<p><strong>vs Static SSI:</strong> '+r.ssi_comparison.interpretation+'</p></div>';html+='<div class="card"><h3>Agent Computations</h3>';r.agents.forEach(function(a){html+='<div class="agent-card"><div class="agent-name">'+a.name+' &mdash; '+a.status+'</div>';html+='<div class="agent-action">'+a.analysis+'</div>';html+='<div class="agent-action">Recommendation: '+a.recommendation+'</div>';if(a.bids){var bids='';Object.entries(a.bids).forEach(function(e){bids+=e[0]+'='+e[1]+', '});html+='<div class="agent-action">Bids: '+bids+'</div>'}html+='</div>'});html+='</div>';html+='<div class="chart-container"><canvas id="cslBidChart"></canvas></div>';document.getElementById('cslResult').innerHTML=html;drawCSLBids(r)})}var cslBidChart=null;function drawCSLBids(r){var ctx=document.getElementById('cslBidChart');if(cslBidChart)cslBidChart.destroy();var agents=r.agents.filter(function(a){return a.bids});var firstAgent=agents[0];if(!firstAgent)return;var routes=Object.keys(firstAgent.bids);var datasets=agents.map(function(a,i){var colors=['#7c4dff','#ff5252','#00e676','#ffab00','#00bcd4','#e91e63','#9c27b0','#4caf50'];return{label:a.name,data:routes.map(function(r){return a.bids[r]||0}),backgroundColor:colors[i%8]}});cslBidChart=new Chart(ctx,{type:'bar',data:{labels:routes,datasets:datasets},options:{responsive:true,plugins:{title:{display:true,text:'Agent Bids by Settlement Route'}},scales:{y:{beginAtZero:true}}}})}"""
-    c += '</script>'
+    c += """function runCSLLive(){var d={value:parseInt(document.getElementById('cslValue').value)||5000000,currency:document.getElementById('cslCurrency').value,counterparty:document.getElementById('cslCounterparty').value,current_hour:parseInt(document.getElementById('cslHour').value)||13};fetch('/api/csl/settle',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(d)}).then(function(r){return r.json()}).then(function(r){var priors=JSON.parse(localStorage.getItem('cslPriors')||'{}');var html='<div class="card"><h3>Settlement Result</h3>';html+='<div class="stamp '+(r.optimal_route==='Internal'?'green':'blue')+'">OPTIMAL: '+r.optimal_route+'</div>';html+='<p>Pareto-optimal routes: '+r.pareto_frontier.join(', ')+'</p>';html+='<p><strong>vs Static SSI:</strong> '+r.ssi_comparison.interpretation+'</p></div>';html+='<div class="card"><h3>Agent Computations</h3>';r.agents.forEach(function(a){html+='<div class="agent-card"><div class="agent-name">'+a.name+' &mdash; '+a.status+'</div>';html+='<div class="agent-action">'+a.analysis+'</div>';html+='<div class="agent-action">Recommendation: '+a.recommendation+'</div>';if(a.bids){html+='<div class="route-row"><span style="flex:0 0 100px;font-size:0.8rem;color:var(--text-dim)">Bids:</span>';var maxBid=Math.max.apply(null,Object.values(a.bids));Object.entries(a.bids).forEach(function(e){var pct=(e[1]/maxBid)*100;html+='<div style="flex:1;min-width:80px"><div style="font-size:0.7rem;color:var(--text-dim)">'+e[0]+'</div><div class="route-bar"><span style="width:'+pct+'%;background:'+(['#7c4dff','#ff5252','#00e676','#ffab00','#00bcd4','#e91e63','#9c27b0','#4caf50','#795548','#607d8b'][Math.floor(Math.random()*10)])+'"></span></div></div>'});html+='</div>'}html+='</div>'});html+='</div>';html+='<div class="card"><h3>Adaptive Feedback (Bandit-Style RL)</h3>';html+='<p style="font-size:0.82rem;color:var(--text-dim)">Record a settlement outcome to update this route exception prior. Priors persist in your browser across scenarios.</p>';html+='<div style="display:flex;gap:8px;flex-wrap:wrap;margin:10px 0">';r.pareto_frontier.forEach(function(route){var p=priors[route]||0;html+='<button class="btn" style="font-size:0.78rem" onclick="recordOutcome(\''+route+'\',\'success\')">Success: '+route+'</button>';html+='<button class="btn secondary" style="font-size:0.78rem" onclick="recordOutcome(\''+route+'\',\'fail\')">Fail: '+route+'</button>'})};html+='</div>';html+='<button class="btn secondary" style="font-size:0.78rem" onclick="resetPriors()">Reset All Priors</button>';html+='<div id="priorDisplay" style="margin-top:10px;font-size:0.82rem;color:var(--text-dim)"></div>';html+='</div>';html+='<div class="chart-container"><canvas id="cslBidChart"></canvas></div>';document.getElementById('cslResult').innerHTML=html;updatePriorDisplay();drawCSLBids(r)})}function recordOutcome(route,result){var priors=JSON.parse(localStorage.getItem('cslPriors')||'{}');if(!priors[route])priors[route]=0;if(result==='fail')priors[route]=Math.min(1,(priors[route]||0)+0.1);else priors[route]=Math.max(0,(priors[route]||0)-0.05);localStorage.setItem('cslPriors',JSON.stringify(priors));updatePriorDisplay()}function resetPriors(){localStorage.removeItem('cslPriors');updatePriorDisplay()}function updatePriorDisplay(){var priors=JSON.parse(localStorage.getItem('cslPriors')||'{}');var el=document.getElementById('priorDisplay');if(!el)return;var keys=Object.keys(priors);if(!keys.length){el.innerHTML='No priors recorded yet.';return}el.innerHTML='Current exception priors: '+keys.map(function(k){return k+'='+Math.round(priors[k]*100)+'%'}).join(', ')}var cslBidChart=null;function drawCSLBids(r){var ctx=document.getElementById('cslBidChart');if(!ctx)return;if(cslBidChart)cslBidChart.destroy();var agents=r.agents.filter(function(a){return a.bids});if(!agents.length)return;var routes=Object.keys(agents[0].bids);var datasets=agents.map(function(a,i){var colors=['#7c4dff','#ff5252','#00e676','#ffab00','#00bcd4','#e91e63','#9c27b0','#4caf50'];return{label:a.name,data:routes.map(function(rt){return a.bids[rt]||0}),backgroundColor:colors[i%8]}});cslBidChart=new Chart(ctx,{type:'bar',data:{labels:routes,datasets:datasets},options:{responsive:true,plugins:{title:{display:true,text:'Agent Bids by Settlement Route'}},scales:{y:{beginAtZero:true}}}})}"""
     return page('Cognitive Settlement Layer', c, 'csl')
 
 @app.route('/csl/rl')
@@ -1877,7 +1916,17 @@ def page_gate():
     c += '</div></div>'
     c += '<div class="card"><h3>Autonomy Lattice</h3>'
     c += '<div class="formula-block">DENY < OBSERVE < SIMULATE < PROPOSE < BOUNDED_EXECUTE < EXECUTE<br>L_eff = meet_i(L_i) &mdash; minimum authority wins</div>'
-    c += '<p>Each gate returns a maximum permitted autonomy level. The effective level is the meet (greatest lower bound) of all gate outputs.</p></div>'
+    c += '<p>Each gate returns a maximum permitted autonomy level. The effective level is the meet (greatest lower bound) of all gate outputs.</p>'
+    c += '<div class="lattice">'
+    levels = ['DENY', 'OBSERVE', 'SIMULATE', 'PROPOSE', 'BOUNDED_EXECUTE', 'EXECUTE']
+    for i, lv in enumerate(levels):
+        cls = 'lnode'
+        if lv == 'BOUNDED_EXECUTE':
+            cls += ' req'
+        c += '<div class="' + cls + '">' + lv + '</div>'
+        if i < len(levels) - 1:
+            c += '<div class="ledge"></div>'
+    c += '</div></div>'
     c += '<div class="card"><h3>Signal Provenance</h3>'
     c += '<p>Every signal entering a gate is tagged with its provenance:</p>'
     c += '<p><span class="prov-tag prov-sigma-a">sigma_A</span> Agent-produced &nbsp; <span class="prov-tag prov-sigma-s">sigma_S</span> System-generated &nbsp; <span class="prov-tag prov-sigma-h">sigma_H</span> Human-issued</p>'
@@ -1896,7 +1945,7 @@ def page_gate():
     c += '</div>'
     c += '<div id="gateResult"></div>'
     c += '<script>'
-    c += """function runGate(name){fetch('/api/gate/scenario/'+name).then(function(r){return r.json()}).then(function(r){var color=r.overall_result==='PROCEED'?'var(--success)':'var(--danger)';var html='<div class="card"><h3>'+r.description+'</h3>';html+='<div class="result-value" style="color:'+color+'">'+r.overall_result+'</div>';html+='<p>Effective Autonomy: '+r.effective_autonomy_level+'</p>';html+='<p>Consequence Class: '+r.consequence_class+' &mdash; '+r.consequence_description+'</p>';html+='<p>No-Autonomous-Path Verified: <strong>'+(r.no_autonomous_path_verified?'YES':'NO &mdash; VIOLATION')+'</strong></p>';html+='<p><em>'+r.nap_analysis+'</em></p></div>';html+='<div class="card"><h3>Gate Circuit Diagram</h3>';html+='<div class="gate-circuit">';r.gate_results.forEach(function(g,idx){var cls=g.result==='PROCEED'?'proceed':'blocked';if(g.violation)cls='violation';html+='<div class="gate-node '+cls+'">';html+='<div style="font-weight:bold">'+g.gate_name+'</div>';html+='<div style="font-size:0.8rem">'+g.gate_type+'</div>';html+='<div style="font-size:0.7rem;margin-top:5px">';g.input_signals.forEach(function(sig,i){var prov=g.input_provenances[i];var provClass=prov==='sigma_A'?'prov-sigma-a':(prov==='sigma_S'?'prov-sigma-s':'prov-sigma-h');html+='<span class="prov-tag '+provClass+'">'+prov+'</span> '});html+='</div>';html+='<div style="margin-top:5px;color:'+(g.result==='PROCEED'?'var(--success)':'var(--danger)')+'">'+g.result+'</div>';html+='</div>';if(idx<r.gate_results.length-1)html+='<div class="gate-arrow">&rarr;</div>'});html+='</div>';if(r.audit_trail){html+='<h4 style="margin-top:15px">Audit Trail</h4><table>';html+='<tr><td>Gates Evaluated</td><td>'+r.audit_trail.gates_evaluated+'</td></tr>';html+='<tr><td>Gates Satisfied</td><td>'+r.audit_trail.gates_satisfied+'</td></tr>';html+='<tr><td>Gates Blocked</td><td>'+r.audit_trail.gates_blocked+'</td></tr>';html+='<tr><td>Well-Formedness Violations</td><td>'+r.audit_trail.well_formedness_violations+'</td></tr></table>'}html+='</div>';html+='<div class="card"><h3>Gate Details</h3>';r.gate_results.forEach(function(g){var gcolor=g.result==='PROCEED'?'var(--success)':'var(--danger)';html+='<div class="agent-card"><div class="agent-name" style="color:'+gcolor+'">'+g.gate_name+' ('+g.gate_type+') &mdash; '+g.result+'</div>';html+='<div class="agent-action">Control Primitive: '+g.control_primitive+'</div>';html+='<div class="agent-action">'+g.description+'</div>';html+='<div class="agent-action">Inputs: ['+g.inputs.join(', ')+'] &rarr; Output: '+g.output+'</div>';html+='<div class="agent-action">Signals: ['+g.input_signals.join(', ')+']</div>';html+='<div class="agent-action">Provenance: ['+g.input_provenances.join(', ')+']</div>';if(g.violation)html+='<div class="agent-action" style="color:var(--danger)"><strong>VIOLATION:</strong> '+g.violation+'</div>';if(!g.well_formed)html+='<div class="agent-action" style="color:#ff9800">Not well-formed</div>';html+='</div>'});html+='</div>';document.getElementById('gateResult').innerHTML=html})}"""
+    c += """function runGate(name){fetch('/api/gate/scenario/'+name).then(function(r){return r.json()}).then(function(r){var color=r.overall_result==='PROCEED'?'var(--success)':'var(--danger)';var html='<div class="card"><h3>'+r.description+'</h3>';html+='<div class="stamp '+(r.overall_result==='PROCEED'?'green':'red')+'">'+r.overall_result+'</div>';html+='<p>Effective Autonomy: '+r.effective_autonomy_level+'</p>';html+='<p>Consequence Class: '+r.consequence_class+' &mdash; '+r.consequence_description+'</p>';html+='<p>No-Autonomous-Path Verified: <strong>'+(r.no_autonomous_path_verified?'YES':'NO &mdash; VIOLATION')+'</strong></p>';html+='<p><em>'+r.nap_analysis+'</em></p></div>';html+='<div class="card"><h3>Gate Circuit Diagram</h3>';html+='<div class="gate-circuit">';r.gate_results.forEach(function(g,idx){var cls=g.result==='PROCEED'?'proceed':'blocked';if(g.violation)cls='violation';html+='<div class="gate-node '+cls+'">';html+='<div style="font-weight:bold">'+g.gate_name+'</div>';html+='<div style="font-size:0.8rem">'+g.gate_type+'</div>';html+='<div style="font-size:0.7rem;margin-top:5px">';g.input_signals.forEach(function(sig,i){var prov=g.input_provenances[i];var provClass=prov==='sigma_A'?'prov-sigma-a':(prov==='sigma_S'?'prov-sigma-s':'prov-sigma-h');html+='<span class="prov-tag '+provClass+'">'+prov+'</span> '});html+='</div>';html+='<div style="margin-top:5px;color:'+(g.result==='PROCEED'?'var(--success)':'var(--danger)')+'">'+g.result+'</div>';html+='</div>';if(idx<r.gate_results.length-1)html+='<div class="gate-arrow">&rarr;</div>'});html+='</div>';if(r.audit_trail){html+='<h4 style="margin-top:15px">Audit Trail</h4><table>';html+='<tr><td>Gates Evaluated</td><td>'+r.audit_trail.gates_evaluated+'</td></tr>';html+='<tr><td>Gates Satisfied</td><td>'+r.audit_trail.gates_satisfied+'</td></tr>';html+='<tr><td>Gates Blocked</td><td>'+r.audit_trail.gates_blocked+'</td></tr>';html+='<tr><td>Well-Formedness Violations</td><td>'+r.audit_trail.well_formedness_violations+'</td></tr></table>'}html+='</div>';html+='<div class="card"><h3>Gate Details</h3>';r.gate_results.forEach(function(g){var gcolor=g.result==='PROCEED'?'var(--success)':'var(--danger)';html+='<div class="agent-card"><div class="agent-name" style="color:'+gcolor+'">'+g.gate_name+' ('+g.gate_type+') &mdash; '+g.result+'</div>';html+='<div class="agent-action">Control Primitive: '+g.control_primitive+'</div>';html+='<div class="agent-action">'+g.description+'</div>';html+='<div class="agent-action">Inputs: ['+g.inputs.join(', ')+'] &rarr; Output: '+g.output+'</div>';html+='<div class="agent-action">Signals: ['+g.input_signals.join(', ')+']</div>';html+='<div class="agent-action">Provenance: ['+g.input_provenances.join(', ')+']</div>';if(g.violation)html+='<div class="agent-action" style="color:var(--danger)"><strong>VIOLATION:</strong> '+g.violation+'</div>';if(!g.well_formed)html+='<div class="agent-action" style="color:#ff9800">Not well-formed</div>';html+='</div>'});html+='</div>';document.getElementById('gateResult').innerHTML=html})}"""
     c += '</script>'
     return page('The Gate Symphony', c, 'gate')
 
@@ -1936,9 +1985,173 @@ def page_gate_scen():
     c += '</div>'
     c += '<div id="gateResult"></div>'
     c += '<script>'
-    c += """function runG(name){fetch('/api/gate/scenario/'+name).then(function(r){return r.json()}).then(function(r){var color=r.overall_result==='PROCEED'?'var(--success)':'var(--danger)';var html='<div class="card"><h3>'+r.description+'</h3>';html+='<div class="result-value" style="color:'+color+'">'+r.overall_result+'</div>';html+='<p>Autonomy: '+r.effective_autonomy_level+'</p>';html+='<p>NAP Verified: <strong>'+(r.no_autonomous_path_verified?'YES':'NO')+'</strong></p>';html+='<p><em>'+r.nap_analysis+'</em></p></div>';html+='<div class="card"><h3>Gate Circuit</h3><div class="gate-circuit">';r.gate_results.forEach(function(g,idx){var cls=g.result==='PROCEED'?'proceed':'blocked';if(g.violation)cls='violation';html+='<div class="gate-node '+cls+'"><div style="font-weight:bold">'+g.gate_name+'</div><div style="font-size:0.8rem">'+g.gate_type+'</div>';g.input_signals.forEach(function(sig,i){var prov=g.input_provenances[i];var pcls=prov==='sigma_A'?'prov-sigma-a':(prov==='sigma_S'?'prov-sigma-s':'prov-sigma-h');html+='<span class="prov-tag '+pcls+'">'+prov+'</span>'});html+='<div style="margin-top:5px;color:'+(g.result==='PROCEED'?'var(--success)':'var(--danger)')+'">'+g.result+'</div></div>';if(idx<r.gate_results.length-1)html+='<div class="gate-arrow">&rarr;</div>'});html+='</div></div>';r.gate_results.forEach(function(g){var gcolor=g.result==='PROCEED'?'var(--success)':'var(--danger)';html+='<div class="agent-card"><div class="agent-name" style="color:'+gcolor+'">'+g.gate_name+' &mdash; '+g.result+'</div>';html+='<div class="agent-action">Signals: ['+g.input_signals.join(', ')+']</div>';html+='<div class="agent-action">Provenance: ['+g.input_provenances.join(', ')+']</div>';if(g.violation)html+='<div class="agent-action" style="color:var(--danger)">'+g.violation+'</div>';html+='</div>'});document.getElementById('gateResult').innerHTML=html})}"""
+    c += """function runG(name){fetch('/api/gate/scenario/'+name).then(function(r){return r.json()}).then(function(r){var color=r.overall_result==='PROCEED'?'var(--success)':'var(--danger)';var html='<div class="card"><h3>'+r.description+'</h3>';html+='<div class="stamp '+(r.overall_result==='PROCEED'?'green':'red')+'">'+r.overall_result+'</div>';html+='<p>Autonomy: '+r.effective_autonomy_level+'</p>';html+='<p>NAP Verified: <strong>'+(r.no_autonomous_path_verified?'YES':'NO')+'</strong></p>';html+='<p><em>'+r.nap_analysis+'</em></p></div>';html+='<div class="card"><h3>Gate Circuit</h3><div class="gate-circuit">';r.gate_results.forEach(function(g,idx){var cls=g.result==='PROCEED'?'proceed':'blocked';if(g.violation)cls='violation';html+='<div class="gate-node '+cls+'"><div style="font-weight:bold">'+g.gate_name+'</div><div style="font-size:0.8rem">'+g.gate_type+'</div>';g.input_signals.forEach(function(sig,i){var prov=g.input_provenances[i];var pcls=prov==='sigma_A'?'prov-sigma-a':(prov==='sigma_S'?'prov-sigma-s':'prov-sigma-h');html+='<span class="prov-tag '+pcls+'">'+prov+'</span>'});html+='<div style="margin-top:5px;color:'+(g.result==='PROCEED'?'var(--success)':'var(--danger)')+'">'+g.result+'</div></div>';if(idx<r.gate_results.length-1)html+='<div class="gate-arrow">&rarr;</div>'});html+='</div></div>';r.gate_results.forEach(function(g){var gcolor=g.result==='PROCEED'?'var(--success)':'var(--danger)';html+='<div class="agent-card"><div class="agent-name" style="color:'+gcolor+'">'+g.gate_name+' &mdash; '+g.result+'</div>';html+='<div class="agent-action">Signals: ['+g.input_signals.join(', ')+']</div>';html+='<div class="agent-action">Provenance: ['+g.input_provenances.join(', ')+']</div>';if(g.violation)html+='<div class="agent-action" style="color:var(--danger)">'+g.violation+'</div>';html+='</div>'});document.getElementById('gateResult').innerHTML=html})}"""
     c += '</script>'
     return page('Gate Scenarios', c, 'gate-scen')
+
+# ============================================================================
+# RESEARCH PAPER ARCHIVE
+# ============================================================================
+
+PAPERS = [
+    {
+        'slug': 'quantum-personnel-securities',
+        'code': 'QPS',
+        'title': 'Quantum Personnel Securities (QPS): A Theoretical Framework for a Third Asset Class Beyond Equity and Debt',
+        'authors': ['Saumyajit Ghosh'],
+        'date': '2025-10',
+        'year': '2025',
+        'pages': 48,
+        'venue': 'ResearchGate / SSRN',
+        'ssrn_id': None,
+        'doi': None,
+        'url': 'https://www.researchgate.net/publication/',
+        'abstract': 'QPS introduces a third asset class using quantum mechanics to model the human and behavioral dimension of corporate value. The framework establishes a quantum state C that is neither pure equity (state A) nor pure debt (state B), but a third orthogonal state linking financial outcomes to human decision-making quality and cognitive bias. The paper defines superposition of strategies, non-commuting bias operators (overconfidence, loss aversion, groupthink, anchoring, confirmation), entanglement between leadership teams, and a payoff function adjusted by leadership entropy.',
+        'keywords': ['quantum finance', 'behavioral economics', 'asset pricing', 'cognitive bias', 'superposition', 'entanglement', 'leadership dynamics'],
+        'innovations': ['Third asset class beyond equity and debt', 'Quantum state vector for leadership strategies', 'Non-commuting bias operators', 'Entropy-adjusted payoff function'],
+    },
+    {
+        'slug': 'tokenized-cognitive-capital',
+        'code': 'TCC',
+        'title': 'Tokenized Cognitive Capital: Pricing and Trading Organizational Intelligence',
+        'authors': ['Saumyajit Ghosh'],
+        'date': '2025-11',
+        'year': '2025',
+        'pages': 59,
+        'venue': 'SSRN',
+        'ssrn_id': None,
+        'doi': None,
+        'url': 'https://ssrn.com/',
+        'abstract': 'TCC extends the QPS framework into a tokenized instrument. The Cognitive Capital Index (CCI) measures collective organizational intelligence across 7 dimensions: knowledge creation, decision efficiency, AI alignment, learning velocity, innovation output, collaboration index, and adaptive capacity. Token valuation incorporates cognitive decay with a half-life, a Volatility of Cognition (VoC) risk premium analogous to financial volatility, and cognitive reflexivity loops where market events feed back into CCI. The paper defines the Mechanics of Cognitive Value (MCV) and its projection into tradeable tokens.',
+        'keywords': ['tokenization', 'cognitive capital', 'organizational intelligence', 'volatility of cognition', 'cognitive decay', 'reflexivity', 'asset pricing'],
+        'innovations': ['Cognitive Capital Index (7 dimensions)', 'Cognitive decay half-life', 'Volatility of Cognition (VoC) risk premium', 'Cognitive reflexivity loops'],
+    },
+    {
+        'slug': 'cognitive-settlement-layer',
+        'code': 'CSL',
+        'title': 'Cognitive Settlement Layer: Multi-Agent Post-Trade Settlement Optimisation',
+        'authors': ['Saumyajit Ghosh'],
+        'date': '2026-02',
+        'year': '2026',
+        'pages': 160,
+        'venue': 'SSRN',
+        'ssrn_id': '6167431',
+        'doi': None,
+        'url': 'https://ssrn.com/abstract=6167431',
+        'abstract': 'CSL is a multi-agent AI framework for dynamic securities settlement routing. Eight specialized agents (Cost, Liquidity, FX, Timeliness, Risk, Exception, Learning, Orchestrator) score every candidate settlement route using a global objective function over cost, liquidity, FX conversion, timeliness, operational risk and exception probability. A compliance agent removes non-compliant routes. The orchestrator either confirms the standing settlement instruction or overrides it with explanation. The paper uses a Control Tower Architecture with 3 layers, Pareto frontier optimization, and MDP-based reinforcement learning for route optimization over time.',
+        'keywords': ['settlement', 'post-trade', 'multi-agent systems', 'reinforcement learning', 'Pareto optimization', 'MDP', 'securities processing'],
+        'innovations': ['8-agent settlement optimization', 'Global objective function with Pareto frontier', 'Control Tower Architecture', 'RL-based MDP routing'],
+    },
+    {
+        'slug': 'gate-symphony',
+        'code': 'GATE',
+        'title': 'The Gate Symphony: Deterministic Logic Gates for Bounding Agentic AI Autonomy',
+        'authors': ['Saumyajit Ghosh'],
+        'date': '2026',
+        'year': '2026',
+        'pages': 35,
+        'venue': 'Working paper',
+        'ssrn_id': None,
+        'doi': None,
+        'url': '',
+        'abstract': 'The Gate Symphony uses deterministic Boolean logic gates (AND, OR, XOR, NAND) to constrain agentic AI autonomy. Every consequential action must pass through gates whose satisfaction requires inputs the agent cannot produce. The No-Autonomous-Path theorem proves that for any well-formed gate symphony, there exists no satisfying assignment of agent-producible signals alone that opens a path to a consequential action. Signal provenance is tracked as sigma_A (agent-produced), sigma_S (system-generated), and sigma_H (human-issued). The theorem is verified across 50,000 randomized cases and 152,285 capability checks.',
+        'keywords': ['AI safety', 'agentic AI', 'boolean logic', 'autonomy bounds', 'no-autonomous-path theorem', 'signal provenance', 'governance'],
+        'innovations': ['No-Autonomous-Path theorem', 'Signal provenance (sigma_A/sigma_S/sigma_H)', 'Autonomy lattice (DENY to EXECUTE)', '4 canonical gate types with attenuation'],
+    },
+]
+
+def scholar_meta(paper):
+    """Generate Google Scholar-compatible meta tags and Schema.org JSON-LD."""
+    tags = ''
+    tags += '<meta name="citation_title" content="' + paper['title'] + '">'
+    for author in paper['authors']:
+        tags += '<meta name="citation_author" content="' + author + '">'
+    tags += '<meta name="citation_publication_date" content="' + paper['date'] + '">'
+    tags += '<meta name="citation_journal_title" content="' + paper['venue'] + '">'
+    if paper.get('doi'):
+        tags += '<meta name="citation_doi" content="' + paper['doi'] + '">'
+    # Schema.org JSON-LD
+    jsonld = {
+        '@context': 'https://schema.org',
+        '@type': 'ScholarlyArticle',
+        'name': paper['title'],
+        'author': [{'@type': 'Person', 'name': a} for a in paper['authors']],
+        'datePublished': paper['date'],
+        'publisher': {'@type': 'Organization', 'name': paper['venue']},
+        'abstract': paper['abstract'],
+        'keywords': ', '.join(paper['keywords']),
+    }
+    tags += '<script type="application/ld+json">' + json.dumps(jsonld) + '</script>'
+    return tags
+
+@app.route('/papers')
+def page_papers():
+    c = '<p>This archive contains the four research papers that form the theoretical foundation of FinSight AI. Each paper has its own landing page with abstract, keywords, and links to SSRN/ResearchGate.</p>'
+    c += '<div class="info-banner"><strong>Google Scholar indexing:</strong> Each paper page emits citation_* meta tags and Schema.org ScholarlyArticle JSON-LD for scholarly discovery.</div>'
+    c += '<div class="card"><h3>Papers</h3>'
+    for p in PAPERS:
+        c += '<a class="paper-card-link" href="/papers/' + p['slug'] + '">'
+        c += '<h4><span class="tag tag-' + ('quantum' if p['code'] == 'QPS' else 'success' if p['code'] == 'TCC' else 'warning' if p['code'] == 'CSL' else 'danger') + '">' + p['code'] + '</span> ' + p['title'][:80] + '...</h4>'
+        c += '<div class="paper-meta">' + p['venue'] + ' | ' + str(p['pages']) + ' pages | ' + p['date'] + '</div>'
+        c += '<div class="paper-meta">' + ', '.join(p['keywords'][:4]) + '</div>'
+        c += '</a>'
+    c += '</div>'
+    c += '<div class="card"><h3>Rights & Licensing</h3>'
+    c += '<p>The software source code of FinSight AI is open source. The research papers, abstracts, figures, and scholarly content remain the copyright of the author. SSRN links are provided for the authoritative version of each paper.</p>'
+    c += '<p><em>Version: Author manuscript | Copyright: (c) 2025-2026 Saumyajit Ghosh | Licence: All rights reserved</em></p>'
+    c += '</div>'
+    return page('Research Papers', c, 'papers')
+
+@app.route('/papers/<slug>')
+def page_paper_detail(slug):
+    paper = None
+    for p in PAPERS:
+        if p['slug'] == slug:
+            paper = p
+            break
+    if not paper:
+        return page('Paper Not Found', '<p>The requested paper was not found.</p>', 'papers'), 404
+    c = '<a href="/papers" style="color:var(--accent);text-decoration:none">&larr; Back to all papers</a>'
+    c += '<div class="paper-detail">'
+    c += '<h3>' + paper['title'] + '</h3>'
+    c += '<div class="paper-meta"><strong>Authors:</strong> ' + ', '.join(paper['authors']) + ' | <strong>Venue:</strong> ' + paper['venue'] + ' | <strong>Pages:</strong> ' + str(paper['pages']) + ' | <strong>Date:</strong> ' + paper['date'] + '</div>'
+    if paper.get('ssrn_id'):
+        c += '<div class="paper-meta"><strong>SSRN:</strong> <a href="' + paper['url'] + '" target="_blank" rel="noopener">' + paper['url'] + '</a></div>'
+    elif paper.get('url'):
+        c += '<div class="paper-meta"><strong>URL:</strong> <a href="' + paper['url'] + '" target="_blank" rel="noopener">' + paper['url'] + '</a></div>'
+    c += '<div class="paper-abstract">' + paper['abstract'] + '</div>'
+    c += '<div class="paper-keywords">'
+    for kw in paper['keywords']:
+        c += '<span class="keyword">' + kw + '</span>'
+    c += '</div>'
+    c += '<h4 style="margin-top:15px;color:var(--accent)">Key Innovations</h4><ul>'
+    for inn in paper['innovations']:
+        c += '<li>' + inn + '</li>'
+    c += '</ul>'
+    c += '<div class="paper-meta" style="margin-top:15px;border-top:1px solid var(--border);padding-top:10px">'
+    c += 'Version: Author manuscript | Copyright: (c) ' + paper['year'] + ' ' + ', '.join(paper['authors']) + ' | Licence: All rights reserved'
+    c += '</div>'
+    c += '</div>'
+    # Use a custom page wrapper that includes scholar meta tags
+    nav_html = '<div class="sidebar"><div class="sidebar-header"><h1>FinSight AI</h1><div class="version">v3.2 COGNITIVE FINANCE</div></div>'
+    sections = [
+        ('Overview', [('/', 'Dashboard', 'overview')]),
+        ('Paper 1: QPS', [('/qps', 'Quantum Personnel Securities', 'qps'), ('/qps/bias', 'Bias Operators', 'qps-bias'), ('/qps/scenarios', 'Simulation Scenarios', 'qps-scen')]),
+        ('Paper 2: TCC', [('/tcc', 'Cognitive Capital Index', 'tcc'), ('/tcc/valuation', 'Token Valuation', 'tcc-val'), ('/tcc/scenarios', 'Market Scenarios', 'tcc-scen')]),
+        ('Paper 3: CSL', [('/csl', 'Settlement Layer', 'csl'), ('/csl/rl', 'RL Training', 'csl-rl'), ('/csl/scenarios', 'Settlement Scenarios', 'csl-scen')]),
+        ('Paper 4: Gates', [('/gate', 'Gate Symphony', 'gate'), ('/gate/truth-tables', 'Truth Tables', 'gate-tt'), ('/gate/scenarios', 'Gate Scenarios', 'gate-scen')]),
+        ('Archive', [('/papers', 'Research Papers', 'papers')]),
+    ]
+    for section_name, items in sections:
+        nav_html += '<div class="nav-section"><div class="nav-section-title">' + section_name + '</div>'
+        for href, label, key in items:
+            cls = ' active' if key == 'papers' else ''
+            nav_html += '<a href="' + href + '" class="nav-item' + cls + '">' + label + '</a>'
+        nav_html += '</div>'
+    nav_html += '</div>'
+    return '<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>' + paper['title'][:60] + ' | FinSight AI</title><style>' + CSS + '</style>' + scholar_meta(paper) + '</head><body>' + nav_html + '<div class="main"><div class="page-header"><h2>' + paper['code'] + ': ' + paper['title'][:50] + '...</h2></div>' + c + '</div></body></html>'
+
+
 
 
 # ============================================================================
